@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ใบเสร็จรับเงิน</title>
+    <style>
+        /* CSS ของคุณดีมากแล้ว ไม่ต้องแก้ไข */
+        body { font-family: 'Sarabun', sans-serif; max-width: 800px; margin: 2rem auto; padding: 30px; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        .quote-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .logo { font-size: 1.5rem; font-weight: bold; }
+        .company-info { text-align: right; }
+        h2 { margin-top: 0; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .quote-footer { text-align: right; margin-top: 2rem; }
+        .print-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-bottom: 2rem; background-color: #198754; color: white; border: none; border-radius: 5px; }
+        .print-btn:hover { background-color: #157347; }
+        .back-link { display: block; margin-bottom: 1rem; text-decoration: none; color: #007bff; }
+
+        @media print {
+            @page { size: auto; margin: 0mm; }
+            body { margin: 1.5cm; padding: 20px; border: none; box-shadow: none; }
+            .print-btn, .back-link { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <a href="/invoices.html" class="back-link">&larr; กลับไปหน้ารายการใบแจ้งหนี้</a>
+    <button onclick="window.print()" class="print-btn">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+    <hr>
+
+    <div id="receipt-content">
+        <div class="quote-header">
+            <div class="logo">Your Studio Name</div>
+            <div class="company-info">
+                <p>123 Main Street, City, Country</p>
+                <p>Tel: (123) 456-7890</p>
+                <p>Email: info@yourstudio.com</p>
+            </div>
+        </div>
+
+        <h2>ใบเสร็จรับเงิน / Receipt</h2>
+        <p><strong>เลขที่:</strong> <span id="document-number"></span></p>
+        <p><strong>วันที่ออก:</strong> <span id="document-date"></span></p>
+        <p><strong>เรียน:</strong> <span id="customer-name"></span></p>
+
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>ลำดับ</th>
+                    <th>รายการ</th>
+                    <th>จำนวน</th>
+                    <th>ราคาต่อหน่วย</th>
+                    <th>ราคารวม</th>
+                </tr>
+            </thead>
+            <tbody id="items-table"></tbody>
+        </table>
+
+        <div class="quote-footer">
+            <h3>ยอดชำระทั้งสิ้น: <span id="document-total"></span> บาท</h3>
+            <p style="text-align: left; margin-top: 1rem; font-size: 0.9rem;"><strong>สถานะ:</strong> <span class="text-success">ชำระเงินเรียบร้อยแล้ว</span></p>
+        </div>
+    </div>
+
+    <script src="receipt-detail.js"></script>
+</body>
+</html>

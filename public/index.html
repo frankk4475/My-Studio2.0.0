@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจองสตูดิโอ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .controls .btn { margin-left: 5px; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>ระบบจัดการสตูดิโอ</h1>
+            <div>
+                <a href="/quotes.html" class="btn btn-secondary">ดูใบเสนอราคา</a>
+                <a href="/calendar.html" class="btn btn-info">ดูปฏิทิน</a>
+                <button id="logout-btn" class="btn btn-danger">Logout</button>
+            </div>
+        </div>
+
+        <div class="card p-4 mb-4">
+            <h2>เพิ่มการจองใหม่</h2>
+            <form id="add-booking-form">
+                <div class="mb-3">
+                    <label for="customer" class="form-label">ชื่อลูกค้า:</label>
+                    <input type="text" class="form-control" id="customer" name="customer" required>
+                </div>
+                <div class="mb-3">
+                    <label for="date" class="form-label">วันที่:</label>
+                    <input type="date" class="form-control" id="date" name="date" required>
+                </div>
+                <div class="mb-3">
+                    <label for="details" class="form-label">รายละเอียด:</label>
+                    <textarea class="form-control" id="details" name="details" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">เพิ่มการจอง</button>
+            </form>
+        </div>
+
+        <h2>รายการจองทั้งหมด</h2>
+        <ul id="booking-list" class="list-group">
+            </ul>
+    </div>
+
+    <div class="modal fade" id="quote-modal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">สร้างใบเสนอราคา</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="quote-form">
+                <input type="hidden" id="quote-booking-id">
+                <div id="quote-items-container">
+                    </div>
+                <button type="button" id="add-quote-item-btn" class="btn btn-secondary mt-2">เพิ่มรายการ</button>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">ปิด</button>
+            <button type="submit" form="quote-form" class="btn btn-success">บันทึกใบเสนอราคา</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
