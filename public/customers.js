@@ -11,6 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const customers = await res.json();
       
+      if (!customers || customers.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">ไม่พบข้อมูลลูกค้าในระบบ</td></tr>';
+        return;
+      }
+      
       tableBody.innerHTML = customers.map(c => {
         const pic = c.linePictureUrl ? '<img src="' + c.linePictureUrl + '" class="rounded-circle me-2" width="32">' : '<div class="bg-secondary rounded-circle me-2" style="width:32px;height:32px"></div>';
         const lineStatus = c.lineUserId ? '<span class="badge bg-success">Connected</span>' : '<span class="badge bg-light text-dark">Not Linked</span>';
@@ -38,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }).join('');
     } catch (e) {
       console.error('Load error:', e);
+      tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-danger">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
     }
   }
 

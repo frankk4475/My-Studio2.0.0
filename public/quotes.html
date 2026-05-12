@@ -17,6 +17,7 @@
       <nav class="nav">
         <a href="/dashboard.html">📊 แดชบอร์ด</a>
         <a href="/index.html">📒 จัดการการจอง</a>
+        <a href="/customers.html">👥 จัดการลูกค้า & LINE</a>
         <a href="/quotes.html" class="active">💬 จัดการใบเสนอราคา</a>
         <a href="/invoices.html">🧾 จัดการใบแจ้งหนี้</a>
         <a href="/calendar.html">📆 ปฏิทินงาน</a>
@@ -149,7 +150,6 @@
 <script>
   document.getElementById('btn-logout')?.addEventListener('click',()=>{
     sessionStorage.clear();
-    //;
     location.replace('/login.html');
   });
 

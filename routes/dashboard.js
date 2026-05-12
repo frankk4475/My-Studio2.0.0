@@ -5,6 +5,7 @@ const Quote = require('../models/Quote');
 const Invoice = require('../models/Invoice');
 const Equipment = require('../models/Equipment');
 const Assignment = require('../models/Assignment');
+const Customer = require('../models/Customer');
 
 router.get('/stats', async (req, res) => {
   try {
@@ -14,7 +15,8 @@ router.get('/stats', async (req, res) => {
       invoices,
       equipment,
       assignments,
-      rawCounts
+      lineCustomers,
+      totalCustomers
     ] = await Promise.all([
       Booking.aggregate([
         { $group: { _id: "$status", count: { $sum: 1 } } }
@@ -34,15 +36,10 @@ router.get('/stats', async (req, res) => {
         { $group: { _id: "$status", count: { $sum: 1 } } }
       ]),
       Assignment.countDocuments({ status: { $ne: 'Completed' } }),
-      Promise.all([
-        Booking.countDocuments(),
-        Quote.countDocuments(),
-        Invoice.countDocuments(),
-        Equipment.countDocuments()
-      ])
+      Customer.countDocuments({ lineUserId: { $exists: true, $ne: '' } }),
+      Customer.countDocuments()
     ]);
 
-    // Format data for easier consumption
     const stats = {
       bookings: {
         total: bookings.reduce((acc, curr) => acc + curr.count, 0),
@@ -58,7 +55,6 @@ router.get('/stats', async (req, res) => {
         totalAmount: invoices.reduce((acc, curr) => acc + curr.total, 0),
         totalPaid: invoices.reduce((acc, curr) => acc + curr.paid, 0),
         totalPending: invoices.reduce((acc, curr) => {
-          // If already Paid, don't count any remaining balance as pending
           if (curr._id === 'Paid') return acc;
           return acc + Math.max(0, curr.total - curr.paid);
         }, 0),
@@ -69,13 +65,9 @@ router.get('/stats', async (req, res) => {
         byStatus: equipment.reduce((acc, curr) => { acc[curr._id] = curr.count; return acc; }, {})
       },
       activeAssignments: assignments,
-      debug: {
-        rawCounts: {
-          bookings: rawCounts[0],
-          quotes: rawCounts[1],
-          invoices: rawCounts[2],
-          equipment: rawCounts[3]
-        }
+      lineStats: {
+        linked: lineCustomers,
+        total: totalCustomers
       }
     };
 

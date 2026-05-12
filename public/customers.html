@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>แดชบอร์ด - Studio Admin</title>
+  <title>จัดการลูกค้า & LINE - Studio Admin</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="/styles.css" rel="stylesheet">
   <script>(function(){ if(!sessionStorage.getItem('authToken')) location.replace('/login.html'); })();</script>
@@ -15,9 +15,9 @@
       <div class="d-lg-none mb-3"><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#sidebar"></button></div>
       <div class="brand">Studio Admin</div>
       <nav class="nav">
-        <a href="/dashboard.html" class="active">📊 แดชบอร์ด</a>
+        <a href="/dashboard.html">📊 แดชบอร์ด</a>
         <a href="/index.html">📒 จัดการการจอง</a>
-        <a href="/customers.html">👥 จัดการลูกค้า & LINE</a>
+        <a href="/customers.html" class="active">👥 จัดการลูกค้า & LINE</a>
         <a href="/quotes.html">💬 จัดการใบเสนอราคา</a>
         <a href="/invoices.html">🧾 จัดการใบแจ้งหนี้</a>
         <a href="/calendar.html">📆 ปฏิทินงาน</a>
@@ -37,35 +37,54 @@
     <div class="page-card">
       <div class="page-header">
         <div>
-          <h4 class="m-0">แดชบอร์ดสรุปผล</h4>
+          <h4 class="m-0">จัดการลูกค้า & LINE</h4>
+          <div class="text-muted small">ดูรายชื่อลูกค้าและการเชื่อมต่อ LINE</div>
         </div>
         <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar">เมนู</button>
       </div>
+
       <div class="page-body">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <div class="card p-3 shadow-sm border-0">
-              <div class="text-muted small">การจองทั้งหมด</div>
-              <h3 id="stat-bookings">0</h3>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card p-3 shadow-sm border-0">
-              <div class="text-muted small">รายได้เดือนนี้</div>
-              <h3 id="stat-revenue">0 THB</h3>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card p-3 shadow-sm border-0">
-              <div class="text-muted small">เชื่อมต่อ LINE แล้ว</div>
-              <h3 id="stat-line">0</h3>
-            </div>
-          </div>
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>ลูกค้า</th>
+                <th>LINE Status</th>
+                <th>เบอร์โทร</th>
+                <th>ใช้งานล่าสุด</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="customer-table-body"></tbody>
+          </table>
         </div>
       </div>
     </div>
   </main>
 </div>
+
+<!-- Modal: Send LINE Message -->
+<div class="modal fade" id="sendMessageModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">ส่งข้อความ LINE</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">ส่งถึง: <strong id="target-customer-name"></strong></label>
+          <textarea id="line-message-text" class="form-control" rows="4" placeholder="พิมพ์ข้อความที่นี่..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal">ยกเลิก</button>
+        <button class="btn btn-primary" id="btn-send-line">ส่งข้อความ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   document.getElementById('btn-logout')?.addEventListener('click',()=>{
     sessionStorage.clear();
@@ -78,6 +97,6 @@
   }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/dashboard.js"></script>
+<script src="customers.js"></script>
 </body>
 </html>
