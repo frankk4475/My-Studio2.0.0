@@ -1,80 +1,74 @@
 const express = require('express');
 const router = express.Router();
 const Booking = require('../models/Booking');
-const Quote = require('../models/Quote');
 const Invoice = require('../models/Invoice');
-const Equipment = require('../models/Equipment');
-const Assignment = require('../models/Assignment');
 const Customer = require('../models/Customer');
 
-router.get('/stats', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
     const [
-      bookings,
-      quotes,
-      invoices,
-      equipment,
-      assignments,
-      lineCustomers,
-      totalCustomers
+      bookingsCount,
+      lineConnectedCount,
+      pendingBookingsCount,
+      revenueMonthResult,
+      recentBookings,
+      revenueHistoryRaw
     ] = await Promise.all([
-      Booking.aggregate([
-        { $group: { _id: "$status", count: { $sum: 1 } } }
-      ]),
-      Quote.aggregate([
-        { $group: { _id: "$status", count: { $sum: 1 }, total: { $sum: { $ifNull: ["$grandTotal", "$total"] } } } }
-      ]),
-      Invoice.aggregate([
-        { $group: { 
-          _id: "$paymentStatus", 
-          count: { $sum: 1 }, 
-          total: { $sum: { $ifNull: ["$grandTotal", "$total"] } },
-          paid: { $sum: "$amountPaid" }
-        }}
-      ]),
-      Equipment.aggregate([
-        { $group: { _id: "$status", count: { $sum: 1 } } }
-      ]),
-      Assignment.countDocuments({ status: { $ne: 'Completed' } }),
+      Booking.countDocuments(),
       Customer.countDocuments({ lineUserId: { $exists: true, $ne: '' } }),
-      Customer.countDocuments()
+      Booking.countDocuments({ status: 'Pending' }),
+      Invoice.aggregate([
+        { 
+          $match: { 
+            createdAt: { $gte: firstDayOfMonth }, 
+            paymentStatus: 'Paid' 
+          } 
+        },
+        { 
+          $group: { 
+            _id: null, 
+            total: { $sum: { $ifNull: ["$grandTotal", "$total"] } } 
+          } 
+        }
+      ]),
+      Booking.find().sort({ createdAt: -1 }).limit(5).lean(),
+      Invoice.aggregate([
+        { $match: { paymentStatus: 'Paid' } },
+        {
+          $group: {
+            _id: {
+              month: { $month: "$createdAt" },
+              year: { $year: "$createdAt" }
+            },
+            total: { $sum: { $ifNull: ["$grandTotal", "$total"] } }
+          }
+        },
+        { $sort: { "_id.year": -1, "_id.month": -1 } },
+        { $limit: 6 }
+      ])
     ]);
 
-    const stats = {
-      bookings: {
-        total: bookings.reduce((acc, curr) => acc + curr.count, 0),
-        byStatus: bookings.reduce((acc, curr) => { acc[curr._id] = curr.count; return acc; }, {})
-      },
-      quotes: {
-        total: quotes.reduce((acc, curr) => acc + curr.count, 0),
-        totalAmount: quotes.reduce((acc, curr) => acc + curr.total, 0),
-        byStatus: quotes.reduce((acc, curr) => { acc[curr._id] = curr.count; return acc; }, {})
-      },
-      invoices: {
-        total: invoices.reduce((acc, curr) => acc + curr.count, 0),
-        totalAmount: invoices.reduce((acc, curr) => acc + curr.total, 0),
-        totalPaid: invoices.reduce((acc, curr) => acc + curr.paid, 0),
-        totalPending: invoices.reduce((acc, curr) => {
-          if (curr._id === 'Paid') return acc;
-          return acc + Math.max(0, curr.total - curr.paid);
-        }, 0),
-        byStatus: invoices.reduce((acc, curr) => { acc[curr._id] = curr.count; return acc; }, {})
-      },
-      equipment: {
-        total: equipment.reduce((acc, curr) => acc + curr.count, 0),
-        byStatus: equipment.reduce((acc, curr) => { acc[curr._id] = curr.count; return acc; }, {})
-      },
-      activeAssignments: assignments,
-      lineStats: {
-        linked: lineCustomers,
-        total: totalCustomers
-      }
-    };
+    // Format revenue history for Chart.js
+    const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const revenueHistory = revenueHistoryRaw.map(h => ({
+      month: `${monthNames[h._id.month - 1]} ${h._id.year}`,
+      amount: h.total
+    })).reverse();
 
-    res.json(stats);
+    res.json({
+      bookingsCount,
+      lineConnectedCount,
+      pendingBookingsCount,
+      revenueMonth: revenueMonthResult[0]?.total || 0,
+      recentBookings,
+      revenueHistory
+    });
   } catch (err) {
-    console.error('Dashboard stats error:', err);
-    res.status(500).json({ message: 'Error fetching dashboard stats', error: err.message });
+    console.error('Dashboard error:', err);
+    res.status(500).json({ message: 'Error fetching dashboard data' });
   }
 });
 

@@ -7,7 +7,12 @@ const Settings = require('../models/Settings');
 async function getSingleton() {
   let s = await Settings.findOne();
   if (!s) {
-    s = await new Settings({}).save();
+    s = await new Settings({
+      business: { name: '', address: '', phone: '', email: '', taxId: '', logoUrl: '' },
+      doc: { creditTermDays: 30, footerNote: '' },
+      tax: { useVat: false, vatRate: 7, pricesIncludeVat: false },
+      apiKeys: { lineCustomerAccessToken: '', lineCustomerSecret: '', lineAdminAccessToken: '', lineAdminSecret: '', geminiApiKey: '' }
+    }).save();
   }
   return s;
 }
@@ -27,34 +32,50 @@ router.get('/', async (req, res) => {
 router.put('/', async (req, res) => {
   try {
     const current = await getSingleton();
-
-    // แค่ merge แบบหลวมๆ ป้องกัน 400 ง่าย ๆ
     const incoming = req.body || {};
+
     const update = {
       business: {
-        name:   incoming?.business?.name    ?? current.business?.name,
-        address:incoming?.business?.address ?? current.business?.address,
-        phone:  incoming?.business?.phone   ?? current.business?.phone,
-        email:  incoming?.business?.email   ?? current.business?.email,
-        taxId:  incoming?.business?.taxId   ?? current.business?.taxId,
-        logoUrl:incoming?.business?.logoUrl ?? current.business?.logoUrl,
+        name:   incoming.business?.name    ?? current.business?.name ?? '',
+        address:incoming.business?.address ?? current.business?.address ?? '',
+        phone:  incoming.business?.phone   ?? current.business?.phone ?? '',
+        email:  incoming.business?.email   ?? current.business?.email ?? '',
+        taxId:  incoming.business?.taxId   ?? current.business?.taxId ?? '',
+        logoUrl:incoming.business?.logoUrl ?? current.business?.logoUrl ?? '',
       },
       doc: {
-        creditTermDays: Number(incoming?.doc?.creditTermDays ?? current.doc?.creditTermDays ?? 30),
-        footerNote:     incoming?.doc?.footerNote ?? current.doc?.footerNote,
+        creditTermDays: Number(incoming.doc?.creditTermDays ?? current.doc?.creditTermDays ?? 30),
+        footerNote:     incoming.doc?.footerNote ?? current.doc?.footerNote ?? '',
       },
       tax: {
-        useVat:            !!(incoming?.tax?.useVat ?? current.tax?.useVat),
-        vatRate:           Number(incoming?.tax?.vatRate ?? current.tax?.vatRate ?? 7),
-        pricesIncludeVat:  !!(incoming?.tax?.pricesIncludeVat ?? current.tax?.pricesIncludeVat),
+        useVat:            !!(incoming.tax?.useVat ?? current.tax?.useVat),
+        vatRate:           Number(incoming.tax?.vatRate ?? current.tax?.vatRate ?? 7),
+        pricesIncludeVat:  !!(incoming.tax?.pricesIncludeVat ?? current.tax?.pricesIncludeVat),
+      },
+      apiKeys: {
+        lineCustomerAccessToken: incoming.apiKeys?.lineCustomerAccessToken ?? current.apiKeys?.lineCustomerAccessToken ?? '',
+        lineCustomerSecret:      incoming.apiKeys?.lineCustomerSecret      ?? current.apiKeys?.lineCustomerSecret ?? '',
+        lineAdminAccessToken:    incoming.apiKeys?.lineAdminAccessToken    ?? current.apiKeys?.lineAdminAccessToken ?? '',
+        lineAdminSecret:         incoming.apiKeys?.lineAdminSecret         ?? current.apiKeys?.lineAdminSecret ?? '',
+        geminiApiKey:           incoming.apiKeys?.geminiApiKey           ?? current.apiKeys?.geminiApiKey ?? '',
       }
     };
 
     const saved = await Settings.findByIdAndUpdate(current._id, update, { new: true });
+    console.log('✅ Settings saved successfully');
+    
+    // Refresh services if possible
+    try {
+      require('../services/lineService').refreshConfig();
+      require('../services/geminiService').refreshConfig();
+    } catch (refreshErr) {
+      console.warn('⚠️ Services not refreshed yet:', refreshErr.message);
+    }
+
     res.json(saved);
   } catch (e) {
     console.error('PUT /api/settings error:', e);
-    res.status(400).json({ message: 'Error updating settings' });
+    res.status(400).json({ message: 'Error updating settings', details: e.message });
   }
 });
 

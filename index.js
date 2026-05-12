@@ -20,26 +20,35 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+// 1. Helmet & CSP
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-      imgSrc: ["'self'", "data:", "https:"],
-      fontSrc: ["'self'", "https:"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "https:", "https://sprofile.line-scdn.net"],
+      fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com", "data:"],
       connectSrc: ["'self'"],
+      upgradeInsecureRequests: [],
     },
   },
 }));
 app.use(cors({ origin: true, credentials: true }));
 
-// 1. LINE Webhook (Must be before any other parsers or auth)
-app.use('/api/line', require('./routes/line'));
+// 2. Custom Body Parser for LINE Webhook (Keep Raw Body for signature verification)
+app.use(express.json({
+  limit: '1mb',
+  verify: (req, res, buf) => {
+    const url = req.originalUrl || req.url || '';
+    if (url.includes('/webhook')) {
+      req.rawBody = buf;
+      // console.log('DEBUG: rawBody captured for', url);
+    }
+  }
+}));
 
-// 2. Body Parser
-app.use(express.json({ limit: '1mb' }));
-
+// 3. Models
 require('./models/Booking');
 require('./models/Quote');
 require('./models/Invoice');
@@ -47,7 +56,7 @@ require('./models/Customer');
 const User = require('./models/User');
 const Settings = require('./models/Settings');
 
-// 3. Init Check Middleware
+// 4. Init Check Middleware
 app.use(async (req, res, next) => {
   const publicPaths = ['/setup.html', '/setup.js', '/api/users/check-init', '/api/users/init', '/styles.css', '/favicon.ico', '/api/line/webhook'];
   if (publicPaths.some(p => req.path === p || req.path.startsWith(p))) return next();
@@ -61,31 +70,17 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// 5. Routes
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'login.html')); });
 app.use(express.static('public'));
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/studioDB';
-const connectDB = async () => {
-  try {
-    await mongoose.connect(MONGO_URI);
-    console.log('✅ MongoDB connected.');
-  } catch (err) {
-    console.error('❌ MongoDB connection error:', err.message);
-    setTimeout(connectDB, 5000);
-  }
-};
-connectDB();
+app.use('/api/line', require('./routes/line'));
+app.use('/api/users', require('./routes/auth'));
 
-app.listen(PORT, () => console.log(`🚀 Server is running at http://localhost:${PORT}`));
-
-// 4. Auth Middleware with LINE exclusion
+// Auth Middleware
 const authMiddleware = async (req, res, next) => {
-  // บังคับข้ามการตรวจ Token สำหรับ LINE Webhook
-  if (req.path.startsWith('/api/line')) {
-    return next();
-  }
-
-  const hdr = req.headers['authorization'] || req.headers['Authorization'] || '';
+  if (req.path.startsWith('/api/line')) return next();
+  const hdr = req.headers['authorization'] || '';
   const token = /^Bearer\s+(.+)$/i.test(hdr) ? hdr.replace(/^Bearer\s+/i, '') : null;
   if (!token) return res.status(401).json({ message: 'Missing token' });
   try {
@@ -97,7 +92,6 @@ const authMiddleware = async (req, res, next) => {
   } catch (err) { return res.status(401).json({ message: 'Invalid token' }); }
 };
 
-app.use('/api/users', require('./routes/auth'));
 app.use('/api', authMiddleware);
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/quotes', require('./routes/quotes'));
@@ -109,30 +103,30 @@ app.use('/api/assignments', require('./routes/assignments'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/customers', require('./routes/customers'));
 
+const connectDB = require('./config/db');
+const socketService = require('./services/socketService');
+
+// Connect to Database
+connectDB();
+
+const server = require('http').createServer(app);
+socketService.init(server);
+
+server.listen(PORT, () => console.log(`🚀 Server is running at http://localhost:${PORT}`));
+
+// 7. Logo Upload
 const uploadsDir = path.join(__dirname, 'public/uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || '.png');
-    cb(null, `logo${ext.toLowerCase()}`);
-  }
-});
-const upload = multer({ storage });
+const upload = multer({ dest: uploadsDir });
 
 app.post('/api/settings/logo', upload.single('logo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file' });
-    const url = `/uploads/${req.file.filename}`;
+    const filename = `logo_${Date.now()}${path.extname(req.file.originalname)}`;
+    fs.renameSync(req.file.path, path.join(uploadsDir, filename));
+    const url = `/uploads/${filename}`;
     let s = await Settings.findOne() || await new Settings({}).save();
-    const updated = await Settings.findByIdAndUpdate(s._id, { 'business.logoUrl': url }, { new: true });
-    res.json({ ok: true, url, settings: updated });
+    await Settings.findByIdAndUpdate(s._id, { 'business.logoUrl': url });
+    res.json({ ok: true, url });
   } catch (e) { res.status(500).json({ message: 'Upload failed' }); }
-});
-
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-app.use((req, res) => res.status(404).json({ message: 'Not found' }));
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ message: 'Internal server error' });
 });

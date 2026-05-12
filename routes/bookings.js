@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Booking = require('../models/Booking');
 const lineService = require('../services/lineService');
+const socketService = require('../services/socketService');
 
 router.get('/', async (req, res) => {
   try {
@@ -26,6 +27,9 @@ router.post('/', async (req, res) => {
     const booking = new Booking(req.body);
     await booking.save();
     
+    // Socket.io notification
+    socketService.emit('bookingCreated', booking);
+
     // Notify LINE Admins
     const dateStr = new Date(booking.date).toLocaleDateString('th-TH');
     lineService.notifyAdmins(`🆕 จองใหม่!\nลูกค้า: ${booking.customer}\nวันที่: ${dateStr}\nเวลา: ${booking.startTime} - ${booking.endTime}\nประเภท: ${booking.bookingType}`);
@@ -46,6 +50,10 @@ router.put('/:id', async (req, res) => {
   try {
     const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!booking) return res.status(404).json({ message: 'Booking not found.' });
+    
+    // Socket.io notification
+    socketService.emit('bookingUpdated', booking);
+    
     res.json(booking);
   } catch (e) { res.status(400).json({ message: 'Error.' }); }
 });
@@ -54,6 +62,10 @@ router.delete('/:id', async (req, res) => {
   try {
     const booking = await Booking.findByIdAndDelete(req.params.id);
     if (!booking) return res.status(404).json({ message: 'Booking not found.' });
+    
+    // Socket.io notification
+    socketService.emit('bookingDeleted', { id: req.params.id });
+    
     res.json({ message: 'Booking deleted successfully.' });
   } catch (e) { res.status(500).json({ message: 'Error.' }); }
 });

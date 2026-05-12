@@ -47,9 +47,9 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 const listEl = document.getElementById('booking-list');
-const emptyEl = document.getElementById('empty-state');
-const searchInput = document.getElementById('search-input');
+const searchInput = document.getElementById('search-booking');
 const statusFilter = document.getElementById('status-filter');
+const refreshBtn = document.getElementById('btn-refresh');
 
 // ===== Safe helpers =====
 const esc = (s) => String(s ?? '')
@@ -72,54 +72,41 @@ function fmtDate(d) {
   return x.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: '2-digit' });
 }
 
-function rowCard(b) {
-  const id = b._id || b.id;
-  const cust = esc(b.customer || '-');
-  const type = esc(b.bookingType || '');
-  const phone = esc(b.contactPhone || '-');
-
-  const statusClass =
-    b.status === 'Confirmed' ? 'chip chip-confirmed' :
-    b.status === 'Cancelled' ? 'chip chip-cancelled' :
-    'chip chip-pending';
-
-  return `
-  <div class="col-12 col-md-6 col-xl-4">
-    <div class="p-3 border rounded-3 bg-white booking-card h-100">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <div class="fw-semibold">${cust}</div>
-          <div class="muted small">${type}</div>
-        </div>
-        <span class="${statusClass}">${esc(b.status || 'Pending')}</span>
-      </div>
-      <div class="mt-3 small muted">
-        วันที่: ${fmtDate(b.date)}<br/>
-        เวลา: ${esc(b.startTime || '-')} – ${esc(b.endTime || '-')}<br/>
-        โทร: ${phone}
-      </div>
-      <div class="mt-3 d-flex gap-2 flex-wrap">
-        <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${id}">แก้ไข</button>
-        <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${id}">ลบ</button>
-        <button class="btn btn-sm btn-dark" data-action="make-quote" data-id="${id}">
-          ใบเสนอราคา
-        </button>
-        <a href="/tasks.html?bookingId=${id}" class="btn btn-sm btn-outline-secondary">
-          👷 จ่ายงาน
-        </a>
-      </div>
-    </div>
-  </div>`;
-}
-
 function renderList(rows) {
   if (!rows.length) {
-    listEl.innerHTML = '';
-    emptyEl.classList.remove('d-none');
+    listEl.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-muted">ไม่พบข้อมูล</td></tr>';
     return;
   }
-  emptyEl.classList.add('d-none');
-  listEl.innerHTML = rows.map(rowCard).join('');
+  
+  listEl.innerHTML = rows.map(b => {
+    const id = b._id || b.id;
+    const statusMap = {
+      'Pending': { class: 'badge-warning', text: 'รอยืนยัน' },
+      'Confirmed': { class: 'badge-success', text: 'ยืนยันแล้ว' },
+      'Cancelled': { class: 'badge-danger', text: 'ยกเลิก' }
+    };
+    const s = statusMap[b.status] || { class: 'badge-info', text: b.status };
+
+    return `
+      <tr>
+        <td>${fmtDate(b.date)}</td>
+        <td>${esc(b.startTime)} - ${esc(b.endTime)}</td>
+        <td>
+          <div class="fw-bold">${esc(b.customer)}</div>
+          <div class="small text-muted">${esc(b.contactPhone)}</div>
+        </td>
+        <td>${esc(b.bookingType)}</td>
+        <td><span class="badge ${s.class}">${s.text}</span></td>
+        <td style="text-align: right;">
+          <div class="d-flex gap-2 justify-content-end">
+            <button class="btn btn-sm btn-outline btn-edit" data-id="${id}">แก้ไข</button>
+            <button class="btn btn-sm btn-primary" data-action="make-quote" data-id="${id}">ใบเสนอราคา</button>
+            <button class="btn btn-sm btn-outline btn-delete" data-id="${id}">🗑️</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 // ===== Load & filter =====
@@ -245,7 +232,66 @@ editForm?.addEventListener('submit', async (e) => {
   }
 });
 
+refreshBtn?.addEventListener('click', loadBookings);
+
 /* ========= ส่วนของ Modal “สร้างใบเสนอราคา” ========= */
+function ensureQuoteModal() {
+  if (document.getElementById('quote-modal')) return;
+  
+  const html = `
+    <div class="modal fade" id="quote-modal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="quote-form">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold">📝 สร้างใบเสนอราคา</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="q-bookingId">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">ชื่อลูกค้า</label>
+                <input type="text" id="q-customerName" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">ชื่อโปรเจกต์</label>
+                <input type="text" id="q-projectName" class="form-control">
+              </div>
+            </div>
+            
+            <div class="mt-4 d-flex justify-content-between align-items-center mb-2">
+              <label class="fw-bold">รายการสินค้า/บริการ</label>
+              <button type="button" class="btn btn-sm btn-outline-info" id="btn-ai-suggest">✨ AI ช่วยแนะนำรายการ</button>
+            </div>
+            
+            <div id="q-items"></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="q-add-item">+ เพิ่มรายการ</button>
+            
+            <hr>
+            <div class="row justify-content-end">
+              <div class="col-md-5">
+                <div class="d-flex justify-content-between mb-1">
+                  <span>ส่วนลด (บาท):</span>
+                  <input type="number" id="q-discount" class="form-control form-control-sm w-50" value="0">
+                </div>
+                <div class="d-flex justify-content-between fw-bold mt-2 pt-2 border-top">
+                  <span>ยอดรวมสุทธิ:</span>
+                  <span id="q-grand">0.00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-bs-dismiss="modal">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary">💾 บันทึกและสร้างใบเสนอราคา</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  document.getElementById('modal-container').innerHTML = html;
+}
+
 function addItemRow(container, data = {}) {
   const row = document.createElement('div');
   row.className = 'row g-2 align-items-end mb-2';
@@ -279,23 +325,18 @@ function recalcQuote() {
     sub += qty * price;
   });
   const disc = Math.max(0, Number($('#q-discount')?.value || 0));
-  $('#q-subtotal').textContent = fmtMoney(sub);
-  $('#q-discount-val').textContent = fmtMoney(disc);
-  $('#q-grand').textContent = fmtMoney(Math.max(sub - disc, 0));
+  const grand = Math.max(sub - disc, 0);
+  document.getElementById('q-grand').textContent = grand.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 }
 
 async function openQuoteModal(booking) {
-  if (!APP_SETTINGS) await loadSettings();
-  const defaultTerm = Number(APP_SETTINGS?.doc?.creditTermDays ?? 30);
+  ensureQuoteModal();
+  const modalEl = document.getElementById('quote-modal');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
   $('#q-bookingId').value = booking?._id || booking?.id || '';
   $('#q-customerName').value = booking?.customer || '';
-  $('#q-contactName').value = '';
-  $('#q-customerTaxId').value = '';
-  $('#q-customerAddress').value = '';
   $('#q-projectName').value = booking?.bookingType || '';
-  $('#q-referenceNumber').value = '';
-  $('#q-creditTerm').value = defaultTerm;
   $('#q-discount').value = 0;
 
   const box = $('#q-items');
@@ -305,12 +346,39 @@ async function openQuoteModal(booking) {
   $('#q-add-item').onclick = () => addItemRow(box);
   $('#q-discount').oninput = recalcQuote;
 
+  // AI Suggest logic
+  document.getElementById('btn-ai-suggest').onclick = async () => {
+    const btn = document.getElementById('btn-ai-suggest');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⌛ กำลังวิเคราะห์...';
+    btn.disabled = true;
+    
+    try {
+      const res = await apiFetch('/api/ai/suggest-quote', { 
+        method: 'POST', 
+        json: { bookingId: booking._id || booking.id } 
+      });
+      
+      if (res.suggestions && res.suggestions.length > 0) {
+        box.innerHTML = ''; // Clear current
+        res.suggestions.forEach(item => addItemRow(box, item));
+        recalcQuote();
+        if (window.layout) window.layout.showToast('AI แนะนำรายการให้แล้วครับ', 'success');
+      }
+    } catch (err) {
+      alert('AI Suggestion failed: ' + err.message);
+    } finally {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
+  };
+
   recalcQuote();
-  bootstrap.Modal.getOrCreateInstance($('#quote-modal')).show();
+  modal.show();
 
   $('#quote-form').onsubmit = async (e) => {
     e.preventDefault();
-    const items = $$('#q-items .row').map(r => ({
+    const items = $$('#q-items .row', box).map(r => ({
       description: r.querySelector('.q-desc').value.trim(),
       quantity: Number(r.querySelector('.q-qty').value || 0),
       price: Number(r.querySelector('.q-price').value || 0),
@@ -325,18 +393,13 @@ async function openQuoteModal(booking) {
       items,
       discount: Number($('#q-discount').value || 0),
       customerName: $('#q-customerName').value.trim(),
-      contactName: $('#q-contactName').value.trim(),
-      customerTaxId: $('#q-customerTaxId').value.trim(),
-      customerAddress: $('#q-customerAddress').value.trim(),
       projectName: $('#q-projectName').value.trim(),
-      referenceNumber: $('#q-referenceNumber').value.trim(),
-      creditTerm: Number($('#q-creditTerm').value || 0),
     };
 
     try {
       const res = await apiFetch('/api/quotes', { method: 'POST', json: payload });
-      bootstrap.Modal.getInstance($('#quote-modal'))?.hide();
-      window.showToast?.('สร้างใบเสนอราคาแล้ว');
+      modal.hide();
+      if (window.layout) window.layout.showToast('สร้างใบเสนอราคาแล้ว', 'success');
       if (confirm('บันทึกสำเร็จ เปิดใบเสนอราคาเลยไหม?')) {
         location.href = `/quote-detail.html?id=${res._id || res.id}`;
       }
@@ -351,6 +414,13 @@ document.addEventListener('DOMContentLoaded', () => {
   loadBookings();
   loadSettings();
 });
+
+// Listen for real-time updates from layout.js
+window.addEventListener('bookingChanged', () => {
+  console.log('🔄 App: Refreshing booking list due to real-time update...');
+  loadBookings();
+});
+
 searchInput?.addEventListener('input', applyFilter);
 statusFilter?.addEventListener('change', applyFilter);
 

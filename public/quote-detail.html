@@ -3,8 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ใบเสนอราคา - Studio Admin</title>
+  <title>ใบเสนอราคา - My-Studio 2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="/styles.css" rel="stylesheet"/>
   <!-- guard -->
   <script>(function(){ if(!sessionStorage.getItem('authToken')) location.replace('/login.html'); })();</script>
   <style>
@@ -45,6 +49,9 @@
       .content{ padding-bottom: var(--footer-spacer); }
       thead{ display: table-header-group; }
       tr, td, th{ page-break-inside: avoid; break-inside: avoid; }
+      .app-container #sidebar-container, .app-container #topbar-container { display: none !important; }
+      .main-wrapper { margin-left: 0 !important; padding: 0 !important; }
+      .content-area { padding: 0 !important; }
     }
     @media (max-width: 600px){ .grid, .grid2{ grid-template-columns:1fr; } .sig-area{ grid-template-columns:1fr; } }
    /* ระยะเว้นล่างสำหรับพื้นที่เซ็น */
@@ -86,115 +93,126 @@
   </style>
 </head>
 <body data-doc="quote">
-  <div class="sheet">
-    <div class="topbar mb-3">
-      <a href="/quotes.html" class="link-primary">← กลับไปหน้ารายการใบเสนอราคา</a>
-      <div class="d-flex gap-2">
-        <button id="convert-btn" class="btn btn-outline-success">แปลงเป็นใบแจ้งหนี้</button>
-        <button class="btn btn-primary" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
-      </div>
-    </div>
+<div class="app-container">
+  <!-- Dynamic Sidebar -->
+  <div id="sidebar-container"></div>
 
-    <div class="content">
-      <!-- Header -->
-      <div class="d-flex align-items-center gap-3 mb-3">
-  <div class="logo-box">
-    <img id="brand-logo" alt="LOGO"
-         style="width:64px;height:64px;border-radius:14px;object-fit:contain;background:#eef2ff">
-  </div>
-  <div class="brand">
-    <h5 id="brand-name">Your Studio Name</h5>
-    <div class="muted small">
-      <span id="brand-address">123 Main Street, City, Country</span>
-      · <span id="brand-contact">Tel: (123) 456-7890 · info@yourstudio.com</span>
-    </div>
-    <div class="muted small">เลขประจำตัวผู้เสียภาษี: <span id="brand-taxid">-</span></div>
+  <!-- Main Wrapper -->
+  <div class="main-wrapper">
+    <!-- Dynamic Topbar -->
+    <div id="topbar-container"></div>
+
+    <main class="content-area">
+      <div class="sheet">
+        <div class="topbar mb-3">
+          <a href="/quotes.html" class="link-primary">← กลับไปหน้ารายการใบเสนอราคา</a>
+          <div class="d-flex gap-2">
+            <button id="convert-btn" class="btn btn-outline-success">แปลงเป็นใบแจ้งหนี้</button>
+            <button class="btn btn-primary" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+          </div>
+        </div>
+
+        <div class="content">
+          <!-- Header -->
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="logo-box">
+              <img id="brand-logo" alt="LOGO"
+                  style="width:64px;height:64px;border-radius:14px;object-fit:contain;background:#eef2ff">
+            </div>
+            <div class="brand">
+              <h5 id="brand-name">Your Studio Name</h5>
+              <div class="muted small">
+                <span id="brand-address">123 Main Street, City, Country</span>
+                · <span id="brand-contact">Tel: (123) 456-7890 · info@yourstudio.com</span>
+              </div>
+              <div class="muted small">เลขประจำตัวผู้เสียภาษี: <span id="brand-taxid">-</span></div>
+            </div>
+          </div>
+
+
+          <!-- Title -->
+          <div class="pill mb-3">
+            <div>ใบเสนอราคา</div>
+            <div class="d-flex align-items-center gap-2"><span class="num-badge" id="doc-no">-</span></div>
+          </div>
+
+          <!-- Meta -->
+          <div class="grid mb-3">
+            <div class="card-sm">
+              <div class="sec-title">รายละเอียดเอกสาร</div>
+              <div class="small"><span class="muted">เลขที่เอกสาร:</span> <span id="meta-number">-</span></div>
+              <div class="small"><span class="muted">วันที่ออก:</span> <span id="meta-issue">-</span></div>
+              <div class="small"><span class="muted">เครดิตเทอม:</span> <span id="meta-term">30 วัน</span></div>
+            </div>
+            <div class="card-sm">
+              <div class="sec-title">ข้อมูลโปรเจกต์</div>
+              <div class="small"><span class="muted">ชื่อโปรเจกต์:</span> <span id="meta-project">-</span></div>
+              <div class="small"><span class="muted">ผู้ติดต่อ:</span> <span id="meta-contact">-</span></div>
+              <div class="small"><span class="muted">สถานะ:</span> <span id="meta-status">-</span></div>
+            </div>
+            <div class="card-sm">
+              <div class="sec-title">หมายเลขอ้างอิง</div>
+              <div class="small"><span class="muted">Ref:</span> <span id="meta-ref">-</span></div>
+            </div>
+          </div>
+
+          <!-- Parties -->
+          <div class="grid2 mb-3">
+            <div class="card-sm">
+              <div class="sec-title">ข้อมูลธุรกิจผู้ขาย</div>
+              <div class="small">ผู้ขาย: <span id="seller-name">Our Studio Name</span></div>
+              <div class="small">ที่อยู่: <span id="seller-addr">123 Main Street, City, Country</span></div>
+              <div class="small">โทร: <span id="seller-phone">(123) 456-7890</span></div>
+              <div class="small">อีเมล: <span id="seller-email">info@yourstudio.com</span></div>
+              <div class="small">เลขผู้เสียภาษี: <span id="seller-taxid">-</span></div>
+            </div>
+            <div class="card-sm">
+              <div class="sec-title">ข้อมูลบริษัทผู้ซื้อ</div>
+              <div class="small"><span class="muted">ชื่อลูกค้า:</span> <span id="buyer-name">-</span></div>
+              <div class="small"><span class="muted">เลขผู้เสียภาษี:</span> <span id="buyer-tax">-</span></div>
+              <div class="small"><span class="muted">ที่อยู่:</span> <span id="buyer-addr">-</span></div>
+            </div>
+          </div>
+
+          <!-- Items -->
+          <div class="table-responsive mb-3">
+            <table class="table">
+              <thead>
+              <tr>
+                <th style="width:72px">ลำดับ</th>
+                <th>รายละเอียด</th>
+                <th style="width:120px" class="text-end">จำนวน</th>
+                <th style="width:150px" class="text-end">ราคาต่อหน่วย</th>
+                <th style="width:150px" class="text-end">ราคารวม</th>
+              </tr>
+              </thead>
+              <tbody id="items-body">
+                <tr><td colspan="5" class="text-center text-muted">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="summary rounded-3">
+            <div class="sum-row"><span>ยอดก่อนหักส่วนลด</span> <strong id="sum-sub">0.00</strong></div>
+            <div class="sum-row"><span>หักส่วนลดพิเศษ</span> <strong id="sum-disc">0.00</strong></div>
+            <div class="sum-row grand"><span>ยอดรวมสุทธิ</span> <strong id="sum-grand">0.00</strong></div>
+          </div>
+        </div>
+
+        <div id="doc-footer">
+          <div class="small text-muted mb-3" id="footer-note"></div>
+          <div class="sig-area">
+            <div class="sig"><div class="ttl">ผู้รับเงิน</div><div class="small text-muted"><div>ลงชื่อ _____________________________</div> <span class="date-line">วันที่ _____________________</span></div></div>
+            <div class="sig"><div class="ttl">ผู้จ่ายเงิน</div><div class="small text-muted"><div>ลงชื่อ _____________________________</div> <span class="date-line">วันที่ _____________________</span></div></div>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 </div>
 
-
-      <!-- Title -->
-      <div class="pill mb-3">
-        <div>ใบเสนอราคา</div>
-        <div class="d-flex align-items-center gap-2"><span class="num-badge" id="doc-no">-</span></div>
-      </div>
-
-      <!-- Meta -->
-      <div class="grid mb-3">
-        <div class="card-sm">
-          <div class="sec-title">รายละเอียดเอกสาร</div>
-          <div class="small"><span class="muted">เลขที่เอกสาร:</span> <span id="meta-number">-</span></div>
-          <div class="small"><span class="muted">วันที่ออก:</span> <span id="meta-issue">-</span></div>
-          <div class="small"><span class="muted">เครดิตเทอม:</span> <span id="meta-term">30 วัน</span></div>
-        </div>
-        <div class="card-sm">
-          <div class="sec-title">ข้อมูลโปรเจกต์</div>
-          <div class="small"><span class="muted">ชื่อโปรเจกต์:</span> <span id="meta-project">-</span></div>
-          <div class="small"><span class="muted">ผู้ติดต่อ:</span> <span id="meta-contact">-</span></div>
-          <div class="small"><span class="muted">สถานะ:</span> <span id="meta-status">-</span></div>
-        </div>
-        <div class="card-sm">
-          <div class="sec-title">หมายเลขอ้างอิง</div>
-          <div class="small"><span class="muted">Ref:</span> <span id="meta-ref">-</span></div>
-        </div>
-      </div>
-
-      <!-- Parties -->
-      <div class="grid2 mb-3">
-        <div class="card-sm">
-          <div class="sec-title">ข้อมูลธุรกิจผู้ขาย</div>
-          <div class="small">ผู้ขาย: <span id="seller-name">Our Studio Name</span></div>
-          <div class="small">ที่อยู่: <span id="seller-addr">123 Main Street, City, Country</span></div>
-          <div class="small">โทร: <span id="seller-phone">(123) 456-7890</span></div>
-          <div class="small">อีเมล: <span id="seller-email">info@yourstudio.com</span></div>
-          <div class="small">เลขผู้เสียภาษี: <span id="seller-taxid">-</span></div>
-        </div>
-        <div class="card-sm">
-          <div class="sec-title">ข้อมูลบริษัทผู้ซื้อ</div>
-          <div class="small"><span class="muted">ชื่อลูกค้า:</span> <span id="buyer-name">-</span></div>
-          <div class="small"><span class="muted">เลขผู้เสียภาษี:</span> <span id="buyer-tax">-</span></div>
-          <div class="small"><span class="muted">ที่อยู่:</span> <span id="buyer-addr">-</span></div>
-        </div>
-      </div>
-
-      <!-- Items -->
-      <div class="table-responsive mb-3">
-        <table class="table">
-          <thead>
-          <tr>
-            <th style="width:72px">ลำดับ</th>
-            <th>รายละเอียด</th>
-            <th style="width:120px" class="text-end">จำนวน</th>
-            <th style="width:150px" class="text-end">ราคาต่อหน่วย</th>
-            <th style="width:150px" class="text-end">ราคารวม</th>
-          </tr>
-          </thead>
-          <tbody id="items-body">
-            <tr><td colspan="5" class="text-center text-muted">กำลังโหลด...</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="summary rounded-3">
-        <div class="sum-row"><span>ยอดก่อนหักส่วนลด</span> <strong id="sum-sub">0.00</strong></div>
-        <div class="sum-row"><span>หักส่วนลดพิเศษ</span> <strong id="sum-disc">0.00</strong></div>
-        <div class="sum-row grand"><span>ยอดรวมสุทธิ</span> <strong id="sum-grand">0.00</strong></div>
-      </div>
-    </div>
-
-    <div id="doc-footer">
-      <div class="small text-muted mb-3" id="footer-note"></div>
-  <div class="sig-area">
-        <div class="sig"><div class="ttl">ผู้รับเงิน</div><div class="small text-muted"><div>ลงชื่อ _____________________________</div> <span class="date-line">วันที่ _____________________</span></div></div>
-        <div class="sig"><div class="ttl">ผู้จ่ายเงิน</div><div class="small text-muted"><div>ลงชื่อ _____________________________</div> <span class="date-line">วันที่ _____________________</span></div></div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    (function(){ document.getElementById('footer-note').textContent = 'ราคานี้ไม่รวมค่าใช้จ่ายเพิ่มเติม (ถ้ามี) และมีอายุ 30 วัน'; })();
-  </script>
-
-  <script src="/quote-detail.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/layout.js"></script>
+<script src="/quote-detail.js" defer></script>
 </body>
 </html>

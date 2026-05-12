@@ -4,7 +4,7 @@
 
   function needAuth() {
     const t = sessionStorage.getItem('authToken');
-    if (!t) { location.replace('/login.html'); return null; }
+    if (!t) { console.warn('No auth token found'); location.replace('/login.html'); return null; }
     return t;
   }
 
@@ -12,43 +12,53 @@
     const img = $('logo-preview');
     if (!img) return;
     img.src = url || '';
+    if (!url) img.style.display = 'none'; else img.style.display = 'block';
   }
 
   function fillForm(s) {
-    const biz = s?.business || {};
-    const doc = s?.doc || {};
-    const tax = s?.tax || {};
+    console.log('Filling form with settings:', s);
+    if (!s) return;
 
-    $('biz-name').value     = biz.name    || '';
-    $('biz-address').value  = biz.address || '';
-    $('biz-phone').value    = biz.phone   || '';
-    $('biz-email').value    = biz.email   || '';
-    $('biz-taxid').value    = biz.taxId   || '';
-    $('biz-logo-url').value = biz.logoUrl || '';
-    setLogoPreview(biz.logoUrl || '');
+    const biz = s.business || {};
+    const doc = s.doc || {};
+    const tax = s.tax || {};
+    const api = s.apiKeys || {};
 
-    $('doc-credit').value   = doc.creditTermDays ?? 30;
-    $('doc-footer').value   = doc.footerNote || '';
+    if ($('biz-name')) $('biz-name').value = biz.name || '';
+    if ($('biz-address')) $('biz-address').value = biz.address || '';
+    if ($('biz-phone')) $('biz-phone').value = biz.phone || '';
+    if ($('biz-email')) $('biz-email').value = biz.email || '';
+    if ($('biz-taxid')) $('biz-taxid').value = biz.taxId || '';
+    if ($('biz-logo-url')) $('biz-logo-url').value = biz.logoUrl || '';
+    setLogoPreview(biz.logoUrl);
 
-    $('tax-use').checked    = !!tax.useVat;
-    $('tax-rate').value     = tax.vatRate ?? 7;
-    $('tax-inc').checked    = !!tax.pricesIncludeVat;
+    if ($('doc-credit')) $('doc-credit').value = doc.creditTermDays ?? 30;
+    if ($('doc-footer')) $('doc-footer').value = doc.footerNote || '';
+
+    if ($('tax-use')) $('tax-use').checked = !!tax.useVat;
+    if ($('tax-rate')) $('tax-rate').value = tax.vatRate ?? 7;
+    if ($('tax-inc')) $('tax-inc').checked = !!tax.pricesIncludeVat;
+
+    // API Keys
+    if ($('api-line-token')) $('api-line-token').value = api.lineCustomerAccessToken || '';
+    if ($('api-line-secret')) $('api-line-secret').value = api.lineCustomerSecret || '';
+    if ($('api-line-admin-token')) $('api-line-admin-token').value = api.lineAdminAccessToken || '';
+    if ($('api-line-admin-secret')) $('api-line-admin-secret').value = api.lineAdminSecret || '';
+    if ($('api-gemini-key')) $('api-gemini-key').value = api.geminiApiKey || '';
   }
 
   async function loadSettings() {
     const token = needAuth(); if (!token) return;
     try {
+      console.log('Loading settings from API...');
       const res = await fetch('/api/settings', { headers: { Authorization: 'Bearer ' + token } });
-      if (res.status === 401 || res.status === 403) {
-        location.replace('/login.html?reason=expired');
-        return;
-      }
-      if (!res.ok) throw new Error('โหลดค่าตั้งค่าไม่สำเร็จ');
+      if (!res.ok) throw new Error('โหลดค่าตั้งค่าไม่สำเร็จ (' + res.status + ')');
       const s = await res.json();
+      console.log('Settings loaded:', s);
       sessionStorage.setItem('settingsCache', JSON.stringify({ ts: Date.now(), data: s }));
       fillForm(s);
     } catch (err) {
-      console.error(err);
+      console.error('Load settings error:', err);
       alert(err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
     }
   }
@@ -57,88 +67,91 @@
     e.preventDefault();
     const token = needAuth(); if (!token) return;
 
-    // ถ้าเลือกไฟล์ ให้แปลงเป็น dataURL เก็บใน logoUrl
-    async function fileToDataURL(file) {
-      if (!file) return null;
-      if (file.size > 850 * 1024) { alert('ไฟล์ใหญ่เกิน 800KB'); return null; }
-      const b64 = await new Promise((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(fr.result);
-        fr.onerror = reject;
-        fr.readAsDataURL(file);
-      });
-      return b64;
-    }
-
-    const file = $('biz-logo-file')?.files?.[0] || null;
-    const fileUrl = await fileToDataURL(file);
-
-    const body = {
-      business: {
-        name:    $('biz-name').value.trim(),
-        address: $('biz-address').value.trim(),
-        phone:   $('biz-phone').value.trim(),
-        email:   $('biz-email').value.trim(),
-        taxId:   $('biz-taxid').value.trim(),
-        logoUrl: fileUrl || $('biz-logo-url').value.trim(), // ไฟล์มาก่อน URL
-      },
-      doc: {
-        creditTermDays: Number($('doc-credit').value || 30),
-        footerNote:     $('doc-footer').value.trim(),
-      },
-      tax: {
-        useVat:           $('tax-use').checked,
-        vatRate:          Number($('tax-rate').value || 7),
-        pricesIncludeVat: $('tax-inc').checked,
-      }
-    };
-
-    const btn = e.submitter || $('settings-save-btn');
+    const btn = $('settings-save-btn');
     if (btn) { btn.disabled = true; btn.dataset._old = btn.innerText; btn.innerText = 'กำลังบันทึก...'; }
 
     try {
+      const body = {
+        business: {
+          name:    $('biz-name')?.value.trim() || '',
+          address: $('biz-address')?.value.trim() || '',
+          phone:   $('biz-phone')?.value.trim() || '',
+          email:   $('biz-email')?.value.trim() || '',
+          taxId:   $('biz-taxid')?.value.trim() || '',
+          logoUrl: $('biz-logo-url')?.value.trim() || '',
+        },
+        doc: {
+          creditTermDays: Number($('doc-credit')?.value || 30),
+          footerNote:     $('doc-footer')?.value.trim() || '',
+        },
+        tax: {
+          useVat:           !!$('tax-use')?.checked,
+          vatRate:          Number($('tax-rate')?.value || 7),
+          pricesIncludeVat: !!$('tax-inc')?.checked,
+        },
+        apiKeys: {
+          lineCustomerAccessToken: $('api-line-token')?.value.trim() || '',
+          lineCustomerSecret:      $('api-line-secret')?.value.trim() || '',
+          lineAdminAccessToken:    $('api-line-admin-token')?.value.trim() || '',
+          lineAdminSecret:         $('api-line-admin-secret')?.value.trim() || '',
+          geminiApiKey:           $('api-gemini-key')?.value.trim() || '',
+        }
+      };
+
+      console.log('Saving settings:', body);
+
       const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify(body),
       });
-      if (res.status === 401 || res.status === 403) {
-        location.replace('/login.html?reason=expired');
-        return;
+
+      if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.message || 'บันทึกไม่สำเร็จ');
       }
-      if (!res.ok) throw new Error('บันทึกไม่สำเร็จ');
+      
       const saved = await res.json();
+      console.log('Settings saved result:', saved);
       sessionStorage.setItem('settingsCache', JSON.stringify({ ts: Date.now(), data: saved }));
       fillForm(saved);
-      alert('บันทึกแล้ว ✔︎');
+      alert('บันทึกการตั้งค่าทั้งหมดเรียบร้อยแล้ว ✔︎ กรุณา Restart Server เพื่อให้ค่า API ใหม่มีผล');
     } catch (err) {
-      console.error(err);
+      console.error('Save settings error:', err);
       alert(err.message || 'เกิดข้อผิดพลาดในการบันทึก');
     } finally {
-      if (btn) { btn.disabled = false; btn.innerText = btn.dataset._old || 'บันทึก'; }
+      if (btn) { btn.disabled = false; btn.innerText = btn.dataset._old || '💾 บันทึกการตั้งค่าทั้งหมด'; }
     }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    // cache
-    try {
-      const cache = JSON.parse(sessionStorage.getItem('settingsCache') || 'null');
-      if (cache && Date.now() - cache.ts < 5 * 60 * 1000) fillForm(cache.data);
-    } catch {}
+    // Initial load
+    loadSettings();
 
-    // live preview โลโก้จาก URL
-    $('biz-logo-url')?.addEventListener('input', (e) => setLogoPreview(e.target.value.trim()));
-
-    // live preview โลโก้จากไฟล์
+    // Event listeners
     $('biz-logo-file')?.addEventListener('change', async (e) => {
-      const f = e.target.files?.[0]; if (!f) return;
-      if (f.size > 850 * 1024) { alert('ไฟล์ใหญ่เกิน 800KB'); e.target.value = ''; return; }
-      const fr = new FileReader();
-      fr.onload = () => setLogoPreview(fr.result);
-      fr.readAsDataURL(f);
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        const formData = new FormData();
+        formData.append('logo', file);
+        
+        try {
+            const res = await fetch('/api/settings/logo', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + sessionStorage.getItem('authToken') },
+                body: formData
+            });
+            const data = await res.json();
+            if (data.ok) {
+                $('biz-logo-url').value = data.url;
+                setLogoPreview(data.url);
+            }
+        } catch (err) {
+            console.error('Logo upload error:', err);
+        }
     });
 
     $('settings-form')?.addEventListener('submit', saveSettings);
-    loadSettings();
   });
 })();

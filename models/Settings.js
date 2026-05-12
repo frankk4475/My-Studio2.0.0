@@ -19,6 +19,13 @@ const settingsSchema = new mongoose.Schema({
     vatRate: { type: Number, default: 7 },
     pricesIncludeVat: { type: Boolean, default: false },
   },
+  apiKeys: {
+    lineCustomerAccessToken: String,
+    lineCustomerSecret: String,
+    lineAdminAccessToken: String,
+    lineAdminSecret: String,
+    geminiApiKey: String,
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.models.Settings || mongoose.model('Settings', settingsSchema);

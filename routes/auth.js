@@ -16,7 +16,7 @@ const auth = async (req, res, next) => {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(payload.userId);
     if (!user) return res.status(401).json({ message: 'User no longer exists' });
-    req.user = { userId: user._id, role: user.role };
+    req.user = { userId: user._id, role: user.role, displayName: user.displayName };
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Invalid token' });

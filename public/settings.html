@@ -1,166 +1,67 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ตั้งค่า - Studio Admin</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="/styles.css" rel="stylesheet"/>
-  <!-- guard -->
-  <script>(function(){ 
-    if(!sessionStorage.getItem('authToken')) location.replace('/login.html');
-    if(sessionStorage.getItem('userRole') !== 'Admin') location.replace('/index.html');
-  })();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ตั้งค่าระบบ - My-Studio 2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/styles.css" rel="stylesheet">
+  <script>(function(){ if(!sessionStorage.getItem('authToken')) location.replace('/login.html'); })();</script>
 </head>
 <body>
-<div class="app">
-  <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar">
-    <div class="offcanvas-body">
-      <div class="d-lg-none mb-3"><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#sidebar"></button></div>
-      <div class="brand">Studio Admin</div>
-      <nav class="nav">
-        <a href="/dashboard.html">📊 แดชบอร์ด</a>
-        <a href="/index.html">📒 จัดการการจอง</a>
-        <a href="/quotes.html">💬 จัดการใบเสนอราคา</a>
-        <a href="/invoices.html">🧾 จัดการใบแจ้งหนี้</a>
-        <a href="/calendar.html">📆 ปฏิทินงาน</a>
-        <a href="/tasks.html">👷 จ่ายงาน/เบิกของ</a>
-        <a href="/inventory.html">📦 คลังอุปกรณ์</a>
-        <a href="/employees.html">👥 จัดการพนักงาน</a>
-        <a href="/settings.html" class="active">⚙️ ตั้งค่า</a>
-      </nav>
-      <div class="spacer"></div>
-      <div class="sidebar-logout">
-        <button id="btn-logout" class="btn btn-outline-light w-100">ออกจากระบบ</button>
-      </div>
-    </div>
-  </aside>
+<div class="app-container">
+  <div id="sidebar-container"></div>
 
-  <main class="main">
-    <div class="page-card">
-      <div class="page-header">
-        <div>
-          <h4 class="m-0">⚙️ ตั้งค่าระบบ</h4>
-          <div class="text-muted small">ข้อมูลธุรกิจ รูปแบบเอกสาร และการตั้งค่าภาษี</div>
-        </div>
-        <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar">เมนู</button>
-      </div>
+  <div class="main-wrapper">
+    <div id="topbar-container"></div>
 
-      <div class="page-body">
-        <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
-          <li class="nav-item">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#company">ข้อมูลธุรกิจ</button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#finance">การเงิน & ภาษี</button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#about">เกี่ยวกับระบบ</button>
-          </li>
-        </ul>
-
-        <div class="tab-content mt-3">
-          <!-- แท็บข้อมูลธุรกิจ -->
-          <div class="tab-pane fade show active" id="company">
-            <form id="settings-form">
-              <div class="row g-3">
-                <div class="col-12">
-                  <label class="form-label">ชื่อบริษัท / ชื่อธุรกิจ</label>
-                  <input id="biz-name" class="form-control" placeholder="เช่น My Studio Co., Ltd." />
-                </div>
-                <div class="col-12">
-                  <label class="form-label">ที่อยู่สำหรับออกเอกสาร</label>
-                  <textarea id="biz-address" class="form-control" rows="3"></textarea>
-                </div>
-                <div class="col-12">
-                  <label class="form-label d-block">โลโก้ธุรกิจ</label>
-                  <div class="d-flex align-items-center gap-3">
-                    <img id="logo-preview" alt="Preview" style="width:80px;height:80px;border-radius:14px;object-fit:contain;background:#f8fafc;border:1px solid #e2e8f0">
-                    <div class="flex-grow-1">
-                      <input id="biz-logo-file" type="file" accept="image/*" class="form-control mb-2" />
-                      <div class="form-text">อัปโหลดไฟล์ (แนะนำสัดส่วน 1:1, ขนาดไม่เกิน 800KB)</div>
-                      <input id="biz-logo-url" type="hidden" />
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">เบอร์โทรศัพท์</label>
-                  <input id="biz-phone" class="form-control" />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">อีเมล</label>
-                  <input id="biz-email" type="email" class="form-control" />
-                </div>
-                <div class="col-12">
-                  <label class="form-label">เลขประจำตัวผู้เสียภาษี</label>
-                  <input id="biz-taxid" class="form-control" />
-                </div>
+    <main class="content-area">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;">
+        <!-- Business Info -->
+        <div class="card">
+          <div class="card-header"><h3 class="h6 m-0 fw-bold">ข้อมูลธุรกิจ</h3></div>
+          <div class="card-body">
+            <form id="form-business">
+              <div class="form-group">
+                <label class="form-label">ชื่อสตูดิโอ</label>
+                <input type="text" name="name" class="form-control">
               </div>
-              
-              <div class="mt-4 pt-3 border-top">
-                <button type="submit" id="settings-save-btn" class="btn btn-primary px-4">บันทึกข้อมูลธุรกิจ</button>
+              <div class="form-group">
+                <label class="form-label">เบอร์โทรศัพท์</label>
+                <input type="text" name="phone" class="form-control">
               </div>
+              <button type="submit" class="btn btn-primary w-100">บันทึกข้อมูล</button>
             </form>
           </div>
+        </div>
 
-          <!-- แท็บการเงิน -->
-          <div class="tab-pane fade" id="finance">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label">เครดิตเทอม (วัน)</label>
-                <input id="doc-credit" type="number" class="form-control" value="30"/>
+        <!-- API Keys -->
+        <div class="card">
+          <div class="card-header"><h3 class="h6 m-0 fw-bold">การเชื่อมต่อ API (LINE & Gemini)</h3></div>
+          <div class="card-body">
+            <form id="form-keys">
+              <div class="form-group">
+                <label class="form-label">Gemini API Key</label>
+                <input type="password" name="geminiApiKey" class="form-control">
               </div>
-              <div class="col-12">
-                <label class="form-label">หมายเหตุท้ายเอกสาร (Default)</label>
-                <input id="doc-footer" class="form-control" placeholder="เช่น โปรดชำระเงินภายใน..."/>
+              <div class="form-group">
+                <label class="form-label">LINE Admin Token</label>
+                <input type="password" name="lineAdminAccessToken" class="form-control">
               </div>
-              <div class="col-md-4 mt-4">
-                <div class="form-check">
-                  <input id="tax-use" class="form-check-input" type="checkbox"/>
-                  <label class="form-check-label" for="tax-use">ใช้งานระบบ VAT</label>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">อัตรา VAT (%)</label>
-                <input id="tax-rate" type="number" class="form-control" value="7"/>
-              </div>
-              <div class="col-md-4 mt-4">
-                <div class="form-check">
-                  <input id="tax-inc" class="form-check-input" type="checkbox"/>
-                  <label class="form-check-label" for="tax-inc">ราคาสินค้ารวม VAT แล้ว</label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- แท็บเกี่ยวกับ -->
-          <div class="tab-pane fade" id="about">
-            <div class="py-3">
-              <h5>Studio Admin</h5>
-              <p class="text-muted">เวอร์ชัน 3.8.0</p>
-              <hr>
-              <p>ระบบจัดการสตูดิโอและงานเอกสารครบวงจร</p>
-            </div>
+              <button type="submit" class="btn btn-primary w-100">อัปเดต API Keys</button>
+            </form>
           </div>
         </div>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 </div>
 
-<script>
-  document.getElementById('btn-logout')?.addEventListener('click',()=>{
-    sessionStorage.clear();
-    //;
-    location.replace('/login.html');
-  });
-
-  // Role-based access control
-  if(sessionStorage.getItem('userRole') !== 'Admin') {
-    document.querySelectorAll('a[href="/employees.html"], a[href="/settings.html"]').forEach(el => el.style.display = 'none');
-  }
-</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/settings.js" defer></script>
+<script src="/layout.js"></script>
+<script src="/settings.js"></script>
 </body>
 </html>
