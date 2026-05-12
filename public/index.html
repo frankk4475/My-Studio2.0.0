@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ระบบจัดการสตูดิโอ</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="/styles.css" rel="stylesheet"/>
+
+  <!-- guard -->
+  <script>(function(){ if(!sessionStorage.getItem('authToken')) location.replace('/login.html'); })();</script>
+
+  <style>
+    .booking-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.06)}
+    .muted{color:#6c757d}
+    .chip{font-size:.8rem;padding:.25rem .5rem;border-radius:999px}
+    .chip-pending{background:#fff3cd;color:#664d03}
+    .chip-confirmed{background:#d1e7dd;color:#0f5132}
+    .chip-cancelled{background:#f8d7da;color:#842029}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar">
+    <div class="offcanvas-body">
+      <div class="d-lg-none mb-3"><button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#sidebar"></button></div>
+      <div class="brand">Studio Admin</div>
+      <nav class="nav">
+        <a href="/dashboard.html">📊 แดชบอร์ด</a>
+        <a href="/index.html" class="active">📒 จัดการการจอง</a>
+        <a href="/quotes.html">💬 จัดการใบเสนอราคา</a>
+        <a href="/invoices.html">🧾 จัดการใบแจ้งหนี้</a>
+        <a href="/calendar.html">📆 ปฏิทินงาน</a>
+        <a href="/tasks.html">👷 จ่ายงาน/เบิกของ</a>
+        <a href="/inventory.html">📦 คลังอุปกรณ์</a>
+        <a href="/employees.html">👥 จัดการพนักงาน</a>
+        <a href="/settings.html">⚙️ ตั้งค่า</a>
+      </nav>
+      <div class="spacer"></div>
+      <div class="sidebar-logout">
+        <button id="btn-logout" class="btn btn-outline-light w-100">ออกจากระบบ</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-card">
+      <div class="page-header">
+        <div>
+          <h4 class="m-0">จัดการการจอง</h4>
+          <div class="text-muted small">เพิ่ม แก้ไข และจัดการงานทั้งหมด</div>
+        </div>
+        <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar">เมนู</button>
+      </div>
+
+      <div class="page-body">
+        <!-- Toolbar -->
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+          <div class="d-flex gap-2">
+            <div class="input-group">
+              <span class="input-group-text">ค้นหา</span>
+              <input id="search-input" type="search" class="form-control" placeholder="ชื่อลูกค้า / ประเภทงาน / เบอร์">
+            </div>
+            <select id="status-filter" class="form-select" style="max-width:170px">
+              <option value="">สถานะทั้งหมด</option>
+              <option value="Pending">รอการยืนยัน</option>
+              <option value="Confirmed">ยืนยันแล้ว</option>
+              <option value="Cancelled">ยกเลิก</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBookingModal">
+            + เพิ่มการจอง
+          </button>
+        </div>
+
+        <!-- List -->
+        <div id="booking-list" class="row g-3"></div>
+
+        <!-- Empty state -->
+        <div id="empty-state" class="text-center text-muted py-5 d-none">
+          <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4c5.svg" width="52" alt="">
+          <p class="mt-3 mb-1">ยังไม่มีการจอง</p>
+          <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addBookingModal">
+            เพิ่มการจองแรก
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: เพิ่มการจอง -->
+<div class="modal fade" id="addBookingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form id="add-booking-form" autocomplete="off">
+        <div class="modal-header">
+          <h5 class="modal-title">เพิ่มการจองใหม่</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">ชื่อลูกค้า</label>
+            <input id="customer" name="customer" class="form-control" required />
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">วันที่</label>
+              <input type="date" id="date" name="date" class="form-control" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">เวลาเริ่ม</label>
+              <input type="time" id="startTime" name="startTime" class="form-control" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">เวลาสิ้นสุด</label>
+              <input type="time" id="endTime" name="endTime" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">เบอร์โทรติดต่อ</label>
+            <input id="contactPhone" name="contactPhone" class="form-control" inputmode="tel">
+          </div>
+
+          <!-- ประเภทงาน -->
+          <div class="mb-3">
+            <label for="bookingType" class="form-label">ประเภทงาน</label>
+            <select id="bookingType" name="bookingType" class="form-select" required>
+              <option value="ถ่ายภาพนิ่ง">ถ่ายภาพนิ่ง</option>
+              <option value="ถ่ายวิดีโอ">ถ่ายวิดีโอ</option>
+              <option value="Live Stream">Live Stream</option>
+              <option value="เช่าสถานที่">เช่าสถานที่</option>
+              <option value="อื่นๆ">อื่นๆ</option>
+            </select>
+          </div>
+
+          <!-- ประเภทลูกค้า -->
+          <div class="mb-3 field-inline">
+            <label for="customerType" class="form-label">ประเภทลูกค้า</label>
+            <select id="customerType" name="customerType" class="form-select select-ct">
+              <option value="บุคคลทั่วไป">บุคคลทั่วไป</option>
+              <option value="บริษัท">บริษัท</option>
+              <option value="VIP">VIP</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">รายละเอียดเพิ่มเติม</label>
+            <textarea id="details" name="details" class="form-control" rows="3"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-light" data-bs-dismiss="modal" type="button">ยกเลิก</button>
+          <button class="btn btn-primary" type="submit">บันทึกการจอง</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: แก้ไขการจอง -->
+<div class="modal fade" id="editBookingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form id="edit-booking-form">
+        <div class="modal-header">
+          <h5 class="modal-title">แก้ไขการจอง</h5>
+          <button class="btn-close" data-bs-dismiss="modal" type="button"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" id="edit-id">
+
+          <div class="mb-3">
+            <label class="form-label">ชื่อลูกค้า</label>
+            <input id="edit-customer" name="customer" class="form-control" required />
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">วันที่</label>
+              <input type="date" id="edit-date" name="date" class="form-control" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">เวลาเริ่ม</label>
+              <input type="time" id="edit-startTime" name="startTime" class="form-control" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">เวลาสิ้นสุด</label>
+              <input type="time" id="edit-endTime" name="endTime" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">ประเภทงาน</label>
+            <select id="edit-bookingType" name="bookingType" class="form-select">
+              <option value="ถ่ายภาพนิ่ง">ถ่ายภาพนิ่ง</option>
+              <option value="ถ่ายวิดีโอ">ถ่ายวิดีโอ</option>
+              <option value="Live Stream">Live Stream</option>
+              <option value="เช่าสถานที่">เช่าสถานที่</option>
+              <option value="อื่นๆ">อื่นๆ</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">เบอร์โทรติดต่อ</label>
+            <input id="edit-contactPhone" name="contactPhone" class="form-control" inputmode="tel">
+          </div>
+
+          <div class="mb-3 field-inline">
+            <label for="edit-customerType" class="form-label">ประเภทลูกค้า</label>
+            <select id="edit-customerType" name="customerType" class="form-select select-ct">
+              <option value="บุคคลทั่วไป">บุคคลทั่วไป</option>
+              <option value="บริษัท">บริษัท</option>
+              <option value="VIP">VIP</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">รายละเอียดเพิ่มเติม</label>
+            <textarea id="edit-details" name="details" class="form-control" rows="3"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-light" data-bs-dismiss="modal" type="button">ยกเลิก</button>
+          <button class="btn btn-success" type="submit" id="edit-save-btn">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal สร้างใบเสนอราคา -->
+<div class="modal fade" id="quote-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">สร้างใบเสนอราคา</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="quote-form" class="row g-3">
+          <input type="hidden" id="q-bookingId">
+          <div class="col-12">
+            <label class="form-label">ชื่อลูกค้า</label>
+            <input id="q-customerName" class="form-control" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">ผู้ติดต่อ</label>
+            <input id="q-contactName" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">เลขผู้เสียภาษี (ถ้ามี)</label>
+            <input id="q-customerTaxId" class="form-control">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">ที่อยู่ลูกค้า</label>
+            <textarea id="q-customerAddress" class="form-control" rows="2"></textarea>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">ชื่อโปรเจกต์</label>
+            <input id="q-projectName" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">เลขอ้างอิง (ถ้ามี)</label>
+            <input id="q-referenceNumber" class="form-control">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">เครดิตเทอม (วัน)</label>
+            <input id="q-creditTerm" type="number" class="form-control" value="30" min="0">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">ส่วนลดพิเศษ</label>
+            <input id="q-discount" type="number" class="form-control" value="0" min="0" step="0.01">
+          </div>
+
+          <!-- รายการสินค้า/บริการ (อย่างน้อย 1 รายการ) -->
+          <div class="col-12">
+            <label class="form-label">รายการ</label>
+            <div id="q-items"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="q-add-item">+ เพิ่มรายการ</button>
+          </div>
+
+          <div class="col-12 mt-2 text-end">
+            <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
+              <span>ยอดรวม: <strong id="q-subtotal">0.00</strong></span>
+              <span>ส่วนลด: <strong id="q-discount-val">0.00</strong></span>
+              <span>ยอดสุทธิ: <strong id="q-grand">0.00</strong></span>
+            </div>
+            <button class="btn btn-primary" type="submit">บันทึกใบเสนอราคา</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: ยืนยันลบ -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">ลบการจอง</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?</div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-light" data-bs-dismiss="modal">ยกเลิก</button>
+      <button type="button" id="confirm-delete-btn" class="btn btn-danger">ลบ</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1080">
+  <div id="app-toast" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-msg">บันทึกสำเร็จ</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('btn-logout')?.addEventListener('click',()=>{
+    sessionStorage.clear();
+    //;
+    location.replace('/login.html');
+  });
+
+  // Role-based access control
+  if(sessionStorage.getItem('userRole') !== 'Admin') {
+    document.querySelectorAll('a[href="/employees.html"], a[href="/settings.html"]').forEach(el => el.style.display = 'none');
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const start=document.getElementById('startTime'), end=document.getElementById('endTime');
+    const sync=()=>{ if(start?.value) end.min=start.value; };
+    start?.addEventListener('change',sync); sync();
+    window.showToast=(m,e=false)=>{
+      const t=document.getElementById('app-toast'),b=document.getElementById('toast-msg');
+      b.textContent=m||(e?'เกิดข้อผิดพลาด':'ทำรายการสำเร็จ');
+      t.classList.toggle('text-bg-danger',!!e);
+      t.classList.toggle('text-bg-success',!e);
+      bootstrap.Toast.getOrCreateInstance(t).show();
+    }
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+/* ========= Design tokens ========= */
+:root{
+  --sidebar-w: 220px;
+  --bg:#f6f7f9; --card:#fff; --text:#1f2937; --muted:#6b7280; --border:#e5e7eb;
+  --primary:#2563eb;
+  --bs-primary:var(--primary); --bs-success:#198754; --bs-danger:#dc3545; --bs-warning:#ffc107; --bs-info:#0dcaf0;
+
+  /* เอกสาร/พิมพ์ */
+  --doc-margin:12mm;
+  --footer-spacer:180px;
+}
+
+/* ========= Base ========= */
+*{ box-sizing:border-box }
+html,body{ height:100% }
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Sarabun',Arial
+}
+a{ text-decoration:none; color:inherit }
+.nowrap{ white-space:nowrap }
+
+/* ========= Layout: Sidebar (Offcanvas Compatible) ========= */
+.sidebar {
+  width: var(--sidebar-w);
+  background: #0f172a !important;
+  color: #e5e7eb !important;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  flex-direction: column;
+  z-index: 1060;
+}
+
+/* Desktop Sidebar Fix (When not Offcanvas) */
+@media (min-width: 992px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+  }
+  .main { margin-left: var(--sidebar-w); }
+}
+
+.offcanvas-body {
+  padding: 16px 12px 72px !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.brand{ padding:18px 10px; font-weight:700; font-size:18px; border-bottom:1px solid rgba(255,255,255,.08) }
+.nav{ padding:10px 8px }
+.nav a{
+  display:flex; align-items:center; gap:10px;
+  color:#e5e7eb; padding:10px 12px; border-radius:10px; transition:.15s
+}
+.nav a:hover{ background:#1f2937 }
+.nav a.active{ background:#374151 }
+
+.sidebar-logout{ margin-top: auto; padding: 12px 0 }
+
+/* ========= Main Content ========= */
+.main{ padding:24px; min-height: 100vh; }
+
+/* ========= Cards / Page chrome ========= */
+.page-card{ background:var(--card); border:1px solid var(--border); border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.03) }
+.page-header{ display:flex; justify-content:space-between; align-items:center; padding:18px 22px; border-bottom:1px solid var(--border) }
+.page-body{ padding:22px }
+
+/* ========= Buttons ========= */
+.btn{ border-radius:10px }
+.btn-primary{ background-color:var(--bs-primary)!important; border-color:var(--bs-primary)!important; color:#fff!important }
+.btn-success{ background-color:var(--bs-success)!important; border-color:var(--bs-success)!important; color:#fff!important }
+.btn-danger { background-color:var(--bs-danger)!important;  border-color:var(--bs-danger)!important;  color:#fff!important }
+
+/* ========= Generic badges ========= */
+.badge{ font-size:12px; padding:4px 8px; border-radius:999px }
+.badge-green{ background:#dcfce7; color:#166534 }
+.badge-yellow{ background:#fef3c7; color:#92400e }
+.badge-red{    background:#fee2e2; color:#b91c1b }
+
+/* ========= Document layout ========= */
+.sheet{
+  max-width:980px; margin:20px auto; background:#fff; border:1px solid var(--border);
+  border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.03);
+  padding:24px; display:flex; flex-direction:column; min-height:calc(100vh - 40px);
+}
+.content{ flex:1 1 auto; padding-bottom:var(--footer-spacer); }
+
+/* Shared document footer */
+.doc-footer{ margin-top:40px; background:#fff; }
+.doc-footer__box{ border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px; }
+.doc-footer__title{ font-weight:700; margin-bottom:6px; }
+.doc-footer__muted{ color:var(--muted); }
+.doc-footer__payopts{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px; }
+.doc-footer__grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+.doc-footer__line{ display:inline-block; min-width:160px; border-bottom:1px solid var(--border); }
+.doc-footer__sign{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.doc-footer__sign .sig{ border:1px solid var(--border); border-radius:12px; padding:12px; min-height:110px; }
+.doc-footer__sign .sig .ttl{ font-weight:600; margin-bottom:6px; }
+
+/* spacer กันพื้นที่ footer ตอนดูบนจอ */
+.footer-spacer{ height: var(--footer-spacer); }
+
+/* ========= Responsive ========= */
+@media (max-width: 991.98px) {
+  .sidebar { width: 280px; }
+  .main { padding: 16px; }
+  .page-header { gap: 10px; }
+}
+
+@media (max-width:576px){
+  .field-inline{ display:block }
+  .field-inline .form-label{ width:auto; margin-bottom:6px; display:block }
+  .select-ct{ max-width:100% }
+}
+
+/* ========= Print ========= */
+@media print{
+  @page{ size:A4 portrait; margin: var(--doc-margin); }
+  html,body{
+    width:210mm; background:#fff!important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .topbar, .sidebar, .sidebar-backdrop, .btn-light.d-lg-none { display:none !important; }
+  .sheet{ margin:0!important; border:none!important; box-shadow:none!important; padding:0!important; min-height:auto; }
+  .doc-footer, #doc-footer{
+    position: fixed;
+    left: var(--doc-margin);
+    right: var(--doc-margin);
+    bottom: var(--doc-margin);
+    margin-top:0;
+    background:#fff;
+  }
+  .content{ padding-bottom: var(--footer-spacer); }
+  .footer-spacer{ height:0 !important; }
+  body{ font-size:12pt } 
+  th,td{ padding:8pt 10pt }
+  table{ page-break-inside:auto; }
+  thead{ display:table-header-group; }
+  tfoot{ display:table-footer-group; }
+  tr,td,th{ page-break-inside:avoid; break-inside:avoid; }
+}

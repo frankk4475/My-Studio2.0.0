@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ใบแจ้งหนี้ - Studio Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- guard -->
+  <script>(function(){ if(!sessionStorage.getItem('authToken')) location.replace('/login.html'); })();</script>
+  <style>
+    :root{ --border:#e5e7eb; --muted:#64748b; --pill:#e6f4ff; --footer-spacer:180px; }
+    body{ background:#f6f7f9; color:#0f172a; }
+    .sheet{ max-width:980px; margin:20px auto; background:#fff; border:1px solid var(--border);
+      border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:24px; display:flex; flex-direction:column; min-height: calc(100vh - 40px); }
+    .content{ flex:1 1 auto; }
+    .topbar{ display:flex; justify-content:space-between; align-items:center; gap:12px }
+    .logo-box{ width:64px; height:64px; border-radius:14px; background:#eef2ff; display:grid; place-items:center; font-weight:800; color:#3730a3 }
+    .brand h5{ margin:0 0 4px; font-weight:700 }
+    .brand .muted{ color:var(--muted) }
+    .pill{ background:var(--pill); padding:10px 14px; border-radius:12px; font-weight:700; display:flex; justify-content:space-between; align-items:center }
+    .num-badge{ background:#eef2ff; color:#3730a3; padding:6px 10px; border-radius:10px; font-weight:700 }
+    .grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px }
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .card-sm{ border:1px solid var(--border); border-radius:12px; padding:12px }
+    .sec-title{ font-weight:700; margin-bottom:8px }
+    .muted{ color:var(--muted) }
+    table{ width:100%; border:1px solid var(--border); border-radius:12px; overflow:hidden }
+    th,td{ padding:10px 12px; border-bottom:1px solid var(--border) }
+    th{ background:#f8fafc; font-weight:700 }
+    td.num{ text-align:right }
+    .summary{ max-width:420px; margin-left:auto }
+    .sum-row{ display:flex; justify-content:space-between; padding:8px 12px; border:1px solid var(--border); border-top:0 }
+    .sum-row:first-child{ border-top:1px solid var(--border) }
+    .grand{ background:#e0f2fe; font-weight:800 }
+    #doc-footer{ margin-top:40px; }
+    .sig-area{ display:grid; grid-template-columns:1fr 1fr; gap:14px }
+    .sig{ border:1px solid var(--border); border-radius:12px; padding:12px; min-height:110px }
+    .sig .ttl{ font-weight:600; margin-bottom:6px }
+    @media print{
+      @page{ size:A4 portrait; margin:12mm; }
+      html,body{ width:210mm; background:#fff!important; -webkit-print-color-adjust:exact; print-color-adjust:exact }
+      .topbar{ display:none !important; }
+      .sheet{ margin:0 !important; border:none !important; box-shadow:none !important; padding:0 !important; min-height:auto; }
+      #doc-footer{ position: fixed; left: 12mm; right: 12mm; bottom: 12mm; background:#fff; }
+      .content{ padding-bottom: var(--footer-spacer); }
+      thead{ display: table-header-group; }
+      tr, td, th{ page-break-inside: avoid; break-inside: avoid; }
+    }
+    @media (max-width: 600px){ .grid, .grid2{ grid-template-columns:1fr; } .sig-area{ grid-template-columns:1fr; } }
+   /* ระยะเว้นล่างสำหรับพื้นที่เซ็น */
+:root{ --footer-spacer: 180px; }
+.content{ padding-bottom: var(--footer-spacer); }
+
+#doc-footer{ margin-top:40px; }
+.sig-area{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.sig{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  min-height:120px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;   /* จัดให้อยู่กลางกรอบ */
+  text-align:center;        /* กลางบรรทัด */
+}
+.sig .ttl{ font-weight:700; margin-bottom:8px }
+
+/* เวลาปริ้น ให้ฟุตเตอร์ “ล็อคติดขอบล่าง” กระดาษ A4 */
+@media print{
+  @page{ size:A4 portrait; margin:12mm; }
+  html,body{ width:210mm; background:#fff!important; -webkit-print-color-adjust:exact; print-color-adjust:exact }
+  .topbar{ display:none !important; }
+  .sheet{ margin:0 !important; border:none !important; box-shadow:none !important; padding:0 !important; min-height:auto; }
+  #doc-footer{ position: fixed; left: 12mm; right: 12mm; bottom: 12mm; background:#fff; }
+  table{ page-break-inside:auto; } thead{ display: table-header-group; } tfoot{ display: table-footer-group; }
+  tr, td, th{ page-break-inside: avoid; break-inside: avoid; }
+}
+
+/* บรรทัดวันที่ให้ลงบรรทัดใหม่ */
+.sig .date-line{ display:block; margin-top:6px; }
+
+  </style>
+</head>
+<body data-doc="invoice">
+  <div class="sheet">
+    <div class="topbar mb-3">
+      <a href="/invoices.html" class="link-primary">← กลับไปหน้ารายการบิล</a>
+      <button class="btn btn-primary" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+    </div>
+
+    <div class="content">
+      <!-- Header (เติม id ให้ใส่ค่าจาก settings) -->
+      <div class="d-flex align-items-center gap-3 mb-3">
+  <div class="logo-box">
+    <img id="brand-logo" alt="LOGO"
+         style="width:64px;height:64px;border-radius:14px;object-fit:contain;background:#eef2ff">
+  </div>
+  <div class="brand">
+    <h5 id="brand-name">Your Studio Name</h5>
+    <div class="muted small">
+      <span id="brand-address">123 Main Street, City, Country</span>
+      · <span id="brand-contact">Tel: (123) 456-7890 · info@yourstudio.com</span>
+    </div>
+    <div class="muted small">เลขประจำตัวผู้เสียภาษี: <span id="brand-taxid">-</span></div>
+  </div>
+</div>
+
+
+      <div class="pill mb-3">
+        <div>ใบแจ้งหนี้</div>
+        <div class="d-flex align-items-center gap-2"><span class="num-badge" id="doc-no">-</span></div>
+      </div>
+
+      <div class="grid mb-3">
+        <div class="card-sm">
+          <div class="sec-title">เลขที่เอกสาร</div>
+          <div class="small muted">เลขที่</div>
+          <div id="meta-number" class="fw-semibold">-</div>
+        </div>
+        <div class="card-sm">
+          <div class="sec-title">วันออก / กำหนดชำระ</div>
+          <div class="small"><span class="muted">วันที่ออก:</span> <span id="meta-issue">-</span></div>
+          <div class="small"><span class="muted">ครบกำหนด:</span> <span id="meta-due">-</span></div>
+        </div>
+        <div class="card-sm">
+          <div class="sec-title">เอกสารอ้างอิง</div>
+          <div class="small"><span class="muted">ใบเสนอราคา:</span> <span id="meta-ref">-</span></div>
+        </div>
+      </div>
+
+      <div class="grid2 mb-3">
+        <div class="card-sm">
+          <div class="sec-title">ข้อมูลธุรกิจผู้ขาย / ผู้ออก</div>
+          <div class="small">ผู้ขาย: <span id="seller-name">Our Studio Name</span></div>
+          <div class="small">ที่อยู่: <span id="seller-addr">123 Main Street, City, Country</span></div>
+          <div class="small">โทร: <span id="seller-phone">(123) 456-7890</span></div>
+          <div class="small">อีเมล: <span id="seller-email">info@yourstudio.com</span></div>
+          <div class="small">เลขผู้เสียภาษี: <span id="seller-taxid">-</span></div>
+        </div>
+        <div class="card-sm">
+          <div class="sec-title">ผู้ซื้อ</div>
+          <div class="small"><span class="muted">ชื่อลูกค้า:</span> <span id="buyer-name">-</span></div>
+          <div class="small"><span class="muted">เลขผู้เสียภาษี:</span> <span id="buyer-tax">-</span></div>
+          <div class="small"><span class="muted">ที่อยู่:</span> <span id="buyer-addr">-</span></div>
+          <div class="small"><span class="muted">ผู้ติดต่อ:</span> <span id="buyer-contact">-</span></div>
+        </div>
+      </div>
+
+      <div class="table-responsive mb-3">
+        <table class="table">
+          <thead>
+          <tr>
+            <th style="width:72px">ลำดับ</th>
+            <th>รายละเอียด</th>
+            <th style="width:120px" class="text-end">จำนวน</th>
+            <th style="width:150px" class="text-end">ราคาต่อหน่วย</th>
+            <th style="width:150px" class="text-end">ราคารวม</th>
+          </tr>
+          </thead>
+          <tbody id="items-body">
+            <tr><td colspan="5" class="text-center text-muted">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="summary rounded-3">
+        <div class="sum-row"><span>ยอดก่อนหักส่วนลด</span> <strong id="sum-sub">0.00</strong></div>
+        <div class="sum-row"><span>หักส่วนลดพิเศษ</span> <strong id="sum-disc">0.00</strong></div>
+        <div class="sum-row grand"><span>ยอดรวมสุทธิ</span> <strong id="sum-grand">0.00</strong></div>
+      </div>
+    </div>
+
+    <div id="doc-footer">
+      <div class="small text-muted mb-3" id="footer-note"></div>
+     <div class="sig-area">
+        <div class="sig"><div class="ttl">ผู้รับเงิน</div><div class="small text-muted"><div>ลงชื่อ _____________________________</div> <span class="date-line">วันที่ _____________________</span></div></div>
+        <div class="sig"><div class="ttl">ผู้จ่ายเงิน</div><div class="small text-muted"><div>ลงชื่อ _____________________________</div> <span class="date-line">วันที่ _____________________</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const note = document.getElementById('footer-note');
+      note.textContent = 'โปรดชำระเงินภายในกำหนดที่ระบุในใบแจ้งหนี้';
+    })();
+  </script>
+
+  <script src="/billing-detail.js" defer></script>
+</body>
+</html>
