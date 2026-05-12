@@ -3,6 +3,7 @@ const router = express.Router();
 const line = require('@line/bot-sdk');
 const lineService = require('../services/lineService');
 const Booking = require('../models/Booking');
+const Customer = require('../models/Customer');
 
 // Webhook endpoint
 router.post('/webhook', line.middleware(lineService.config), (req, res) => {
@@ -23,7 +24,28 @@ async function handleEvent(event) {
   const text = event.message.text.trim();
   const userId = event.source.userId;
 
-  // Simple Logic: Check Booking Status
+  // 1. Sync/Update Customer Info
+  let customer = await Customer.findOne({ lineUserId: userId });
+  if (!customer) {
+    try {
+      const profile = await lineService.client.getProfile(userId);
+      customer = new Customer({
+        name: profile.displayName || 'LINE User',
+        lineUserId: userId,
+        lineDisplayName: profile.displayName,
+        linePictureUrl: profile.pictureUrl,
+        lastActive: new Date()
+      });
+      await customer.save();
+    } catch (e) {
+      customer = await new Customer({ name: 'LINE User', lineUserId: userId }).save();
+    }
+  } else {
+    customer.lastActive = new Date();
+    await customer.save();
+  }
+
+  // 2. Logic: Check Booking Status
   if (text.toLowerCase().startsWith('เช็คสถานะ')) {
     const customerName = text.replace(/เช็คสถานะ/i, '').trim();
     if (!customerName) {
@@ -41,6 +63,11 @@ async function handleEvent(event) {
       });
     }
 
+    if (!booking.lineUserId) {
+      booking.lineUserId = userId;
+      await booking.save();
+    }
+
     const statusMap = { 'Pending': '⏳ รอการยืนยัน', 'Confirmed': '✅ ยืนยันแล้ว', 'Cancelled': '❌ ยกเลิกแล้ว' };
     const dateStr = new Date(booking.date).toLocaleDateString('th-TH');
     
@@ -53,7 +80,6 @@ async function handleEvent(event) {
     });
   }
 
-  // Default response
   return lineService.client.replyMessage({
     replyToken: event.replyToken,
     messages: [{ type: 'text', text: 'สวัสดีครับ! คุณสามารถพิมพ์ "เช็คสถานะ [ชื่อ]" เพื่อดูสถานะการจองของคุณได้ครับ' }]

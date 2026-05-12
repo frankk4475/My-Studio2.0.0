@@ -43,6 +43,7 @@ app.use(express.json({ limit: '1mb' }));
 require('./models/Booking');
 require('./models/Quote');
 require('./models/Invoice');
+require('./models/Customer');
 const User = require('./models/User');
 const Settings = require('./models/Settings');
 
@@ -106,6 +107,7 @@ app.use('/api/ai', require('./routes/ai'));
 app.use('/api/equipment', require('./routes/equipment'));
 app.use('/api/assignments', require('./routes/assignments'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/customers', require('./routes/customers'));
 
 const uploadsDir = path.join(__dirname, 'public/uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
