@@ -37,7 +37,8 @@ async function loadSettings() {
     // 3. API Integrations
     const api = data.apiKeys || {};
     const fApi = document.getElementById('form-api');
-    fApi.elements['geminiApiKey'].value = api.geminiApiKey || '';
+    fApi.elements['ollamaUrl'].value = api.ollamaUrl || 'http://localhost:11434';
+    fApi.elements['ollamaModel'].value = api.ollamaModel || 'llama3';
     fApi.elements['lineCustomerAccessToken'].value = api.lineCustomerAccessToken || '';
     fApi.elements['lineCustomerSecret'].value = api.lineCustomerSecret || '';
     fApi.elements['lineAdminAccessToken'].value = api.lineAdminAccessToken || '';

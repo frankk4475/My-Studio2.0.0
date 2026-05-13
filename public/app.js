@@ -118,7 +118,7 @@ async function loadBookings() {
     applyFilter();
   } catch (e) {
     console.error(e);
-    window.showToast?.('โหลดรายการล้มเหลว: ' + (e.message || e), true);
+    layout.showToast?.('โหลดรายการล้มเหลว: ' + (e.message || e), true);
     renderList([]);
   }
 }
@@ -144,11 +144,11 @@ addForm?.addEventListener('submit', async (e) => {
   try {
     await apiFetch('/api/bookings', { method: 'POST', json });
     bootstrap.Modal.getOrCreateInstance(document.getElementById('addBookingModal')).hide();
-    window.showToast?.('เพิ่มการจองแล้ว');
+    layout.showToast?.('เพิ่มการจองแล้ว');
     await loadBookings();
     addForm.reset();
   } catch (err) {
-    window.showToast?.('บันทึกไม่สำเร็จ: ' + (err.message || err), true);
+    layout.showToast?.('บันทึกไม่สำเร็จ: ' + (err.message || err), true);
   }
 });
 
@@ -163,10 +163,10 @@ document.addEventListener('click', async (e) => {
     if (!confirm('ลบรายการนี้?')) return;
     try {
       await apiFetch('/api/bookings/' + id, { method: 'DELETE' });
-      window.showToast?.('ลบสำเร็จ');
+      layout.showToast?.('ลบสำเร็จ');
       await loadBookings();
     } catch (err) {
-      window.showToast?.('ลบไม่สำเร็จ: ' + (err.message || err), true);
+      layout.showToast?.('ลบไม่สำเร็จ: ' + (err.message || err), true);
     }
     return;
   }
@@ -187,21 +187,73 @@ document.addEventListener('click', async (e) => {
       document.getElementById('edit-customerType').value = item.customerType || 'บุคคลทั่วไป';
       document.getElementById('edit-details').value = item.details || '';
       bootstrap.Modal.getOrCreateInstance(document.getElementById('editBookingModal')).show();
+      // Switch back to first tab
+      bootstrap.Tab.getOrCreateInstance(document.getElementById('details-tab')).show();
+      // Hide AI results
+      document.getElementById('ai-result-container')?.classList.add('d-none');
     } catch (err) {
-      window.showToast?.('โหลดข้อมูลไม่สำเร็จ: ' + (err.message || err), true);
+      layout.showToast?.('โหลดข้อมูลไม่สำเร็จ: ' + (err.message || err), true);
     }
     return;
   }
 
-  // ใบเสนอราคา: เปิด modal
+  // --- AI ASSISTANT BUTTONS ---
+  const aiBtn = t.closest('#btn-ai-shotlist, #btn-ai-equipment, #btn-ai-email');
+  if (aiBtn) {
+    const id = document.getElementById('edit-id').value;
+    const type = aiBtn.id.replace('btn-ai-', ''); // shotlist, equipment, email
+    const container = document.getElementById('ai-result-container');
+    const content = document.getElementById('ai-result-content');
+    const loading = document.getElementById('ai-loading');
+    const title = document.getElementById('ai-result-title');
+
+    const titles = {
+        shotlist: '📸 แผนการถ่ายงาน (Shot List)',
+        equipment: '📦 อุปกรณ์ที่แนะนำ',
+        email: '📧 ร่างข้อความสื่อสาร'
+    };
+
+    const endpoints = {
+        shotlist: '/api/ai/shot-list',
+        equipment: '/api/ai/suggest-equipment',
+        email: '/api/ai/draft-email'
+    };
+
+    container.classList.add('d-none');
+    loading.classList.remove('d-none');
+    title.textContent = titles[type];
+
+    try {
+        const payload = { bookingId: id };
+        if (type === 'email') {
+            payload.type = 'quote'; // Default for now
+            payload.docId = id; // This might need logic to find actual quote ID
+        }
+
+        const res = await apiFetch(endpoints[type], { 
+            method: 'POST', 
+            json: payload 
+        });
+
+        content.textContent = res.creativeDirection || res.equipmentList || res.draft || 'ไม่มีข้อมูล';
+        container.classList.remove('d-none');
+    } catch (err) {
+        layout.showToast?.('AI Error: ' + err.message, true);
+    } finally {
+        loading.classList.add('d-none');
+    }
+    return;
+  }
+
+  // ใบเสนอราคา
   const btnQuote = t.closest('[data-action="make-quote"]');
   if (btnQuote) {
     const id = btnQuote.dataset.id;
     try {
-      const booking = await apiFetch('/api/bookings/' + encodeURIComponent(id));
-      openQuoteModal(booking);
+        const booking = await apiFetch('/api/bookings/' + id);
+        openQuoteModal(booking);
     } catch (err) {
-      window.showToast?.('โหลดข้อมูลไม่สำเร็จ: ' + (err.message || err), true);
+        layout.showToast?.('โหลดข้อมูลการจองไม่สำเร็จ', true);
     }
     return;
   }
@@ -225,10 +277,10 @@ editForm?.addEventListener('submit', async (e) => {
   try {
     await apiFetch('/api/bookings/' + id, { method: 'PUT', json: payload });
     bootstrap.Modal.getOrCreateInstance(document.getElementById('editBookingModal')).hide();
-    window.showToast?.('บันทึกแล้ว');
+    layout.showToast?.('บันทึกแล้ว');
     await loadBookings();
   } catch (err) {
-    window.showToast?.('บันทึกไม่สำเร็จ: ' + (err.message || err), true);
+    layout.showToast?.('บันทึกไม่สำเร็จ: ' + (err.message || err), true);
   }
 });
 
@@ -238,7 +290,8 @@ refreshBtn?.addEventListener('click', loadBookings);
 function ensureQuoteModal() {
   if (document.getElementById('quote-modal')) return;
   
-  const html = `
+  const div = document.createElement('div');
+  div.innerHTML = `
     <div class="modal fade" id="quote-modal" tabindex="-1">
       <div class="modal-dialog modal-lg">
         <form class="modal-content" id="quote-form">
@@ -256,6 +309,10 @@ function ensureQuoteModal() {
               <div class="col-md-6">
                 <label class="form-label">ชื่อโปรเจกต์</label>
                 <input type="text" id="q-projectName" class="form-control">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">เงินมัดจำ (Deposit)</label>
+                <input type="number" id="q-requiredDeposit" class="form-control" value="0">
               </div>
             </div>
             
@@ -289,7 +346,7 @@ function ensureQuoteModal() {
       </div>
     </div>
   `;
-  document.getElementById('modal-container').innerHTML = html;
+  document.getElementById('modal-container').appendChild(div.firstElementChild);
 }
 
 function addItemRow(container, data = {}) {
@@ -317,14 +374,14 @@ function addItemRow(container, data = {}) {
 }
 
 function recalcQuote() {
-  const rows = $$('#q-items .row');
+  const rows = Array.from(document.querySelectorAll('#q-items .row'));
   let sub = 0;
   rows.forEach(r => {
     const qty = Math.max(0, Number(r.querySelector('.q-qty')?.value || 0));
     const price = Math.max(0, Number(r.querySelector('.q-price')?.value || 0));
     sub += qty * price;
   });
-  const disc = Math.max(0, Number($('#q-discount')?.value || 0));
+  const disc = Math.max(0, Number(document.getElementById('q-discount')?.value || 0));
   const grand = Math.max(sub - disc, 0);
   document.getElementById('q-grand').textContent = grand.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 }
@@ -334,17 +391,18 @@ async function openQuoteModal(booking) {
   const modalEl = document.getElementById('quote-modal');
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
-  $('#q-bookingId').value = booking?._id || booking?.id || '';
-  $('#q-customerName').value = booking?.customer || '';
-  $('#q-projectName').value = booking?.bookingType || '';
-  $('#q-discount').value = 0;
+  document.getElementById('q-bookingId').value = booking?._id || booking?.id || '';
+  document.getElementById('q-customerName').value = booking?.customer || '';
+  document.getElementById('q-projectName').value = booking?.bookingType || '';
+  document.getElementById('q-discount').value = 0;
+  document.getElementById('q-requiredDeposit').value = 0;
 
-  const box = $('#q-items');
+  const box = document.getElementById('q-items');
   box.innerHTML = '';
   addItemRow(box, { description: booking?.bookingType || '', quantity: 1, price: 0 });
 
-  $('#q-add-item').onclick = () => addItemRow(box);
-  $('#q-discount').oninput = recalcQuote;
+  document.getElementById('q-add-item').onclick = () => addItemRow(box);
+  document.getElementById('q-discount').oninput = recalcQuote;
 
   // AI Suggest logic
   document.getElementById('btn-ai-suggest').onclick = async () => {
@@ -376,9 +434,9 @@ async function openQuoteModal(booking) {
   recalcQuote();
   modal.show();
 
-  $('#quote-form').onsubmit = async (e) => {
+  document.getElementById('quote-form').onsubmit = async (e) => {
     e.preventDefault();
-    const items = $$('#q-items .row', box).map(r => ({
+    const items = Array.from(box.querySelectorAll('.row')).map(r => ({
       description: r.querySelector('.q-desc').value.trim(),
       quantity: Number(r.querySelector('.q-qty').value || 0),
       price: Number(r.querySelector('.q-price').value || 0),
@@ -389,11 +447,12 @@ async function openQuoteModal(booking) {
     }
 
     const payload = {
-      bookingId: $('#q-bookingId').value,
+      bookingId: document.getElementById('q-bookingId').value,
       items,
-      discount: Number($('#q-discount').value || 0),
-      customerName: $('#q-customerName').value.trim(),
-      projectName: $('#q-projectName').value.trim(),
+      discount: Number(document.getElementById('q-discount').value || 0),
+      customerName: document.getElementById('q-customerName').value.trim(),
+      projectName: document.getElementById('q-projectName').value.trim(),
+      requiredDeposit: Number(document.getElementById('q-requiredDeposit').value || 0),
     };
 
     try {
@@ -423,5 +482,3 @@ window.addEventListener('bookingChanged', () => {
 
 searchInput?.addEventListener('input', applyFilter);
 statusFilter?.addEventListener('change', applyFilter);
-
-// Logout handling is done in index.html inline script

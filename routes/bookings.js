@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
       Booking.countDocuments(q)
     ]);
     res.json({ data: rows, total, page: Number(page), limit: lim });
-  } catch (e) { res.status(500).json({ message: 'Error.' }); }
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error.' }); }
 });
 
 router.post('/', async (req, res) => {
@@ -35,7 +35,7 @@ router.post('/', async (req, res) => {
     lineService.notifyAdmins(`🆕 จองใหม่!\nลูกค้า: ${booking.customer}\nวันที่: ${dateStr}\nเวลา: ${booking.startTime} - ${booking.endTime}\nประเภท: ${booking.bookingType}`);
     
     res.status(201).json(booking);
-  } catch (e) { res.status(400).json({ message: 'Error.' }); }
+  } catch (e) { console.error(e); res.status(400).json({ message: 'Error.' }); }
 });
 
 router.get('/calendar', async (req, res) => {
@@ -59,24 +59,51 @@ router.get('/calendar', async (req, res) => {
   }
 });
 
+// GET /api/bookings/:id/public (Public access)
+router.get('/:id/public', async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found.' });
+    // Filter sensitive info if needed, but here we return basic public details
+    res.json({
+        _id: booking._id,
+        customer: booking.customer,
+        date: booking.date,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        bookingType: booking.bookingType,
+        status: booking.status,
+        details: booking.details,
+        contactPhone: booking.contactPhone
+    });
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error.' }); }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if (!booking) return res.status(404).json({ message: 'Booking not found.' });
     res.json(booking);
-  } catch (e) { res.status(500).json({ message: 'Error.' }); }
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error.' }); }
 });
 
 router.put('/:id', async (req, res) => {
   try {
+    const oldBooking = await Booking.findById(req.params.id);
     const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!booking) return res.status(404).json({ message: 'Booking not found.' });
     
+    // Trigger notification if confirmed
+    if (booking.status === 'Confirmed' && oldBooking.status !== 'Confirmed' && booking.lineUserId) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        await lineService.sendBookingConfirmation(booking.lineUserId, booking, baseUrl);
+    }
+
     // Socket.io notification
     socketService.emit('bookingUpdated', booking);
     
     res.json(booking);
-  } catch (e) { res.status(400).json({ message: 'Error.' }); }
+  } catch (e) { console.error(e); res.status(400).json({ message: 'Error.' }); }
 });
 
 router.delete('/:id', async (req, res) => {
@@ -88,7 +115,7 @@ router.delete('/:id', async (req, res) => {
     socketService.emit('bookingDeleted', { id: req.params.id });
     
     res.json({ message: 'Booking deleted successfully.' });
-  } catch (e) { res.status(500).json({ message: 'Error.' }); }
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error.' }); }
 });
 
 module.exports = router;

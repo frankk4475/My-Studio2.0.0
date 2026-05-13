@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ใบยืนยันการจอง - My-Studio 2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/styles.css" rel="stylesheet">
+  <style>
+    body { background-color: #f1f5f9; padding: 20px 0; color: #1e293b; }
+    .doc-paper { 
+        max-width: 800px; 
+        margin: auto; 
+        background: white; 
+        padding: 50px; 
+        border-radius: 12px; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+    }
+    .status-confirmed { color: #10b981; }
+    .financial-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 30px;
+    }
+    .financial-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+    .grand-total {
+        font-size: 1.25rem;
+        font-weight: 800;
+        border-top: 2px solid #e2e8f0;
+        padding-top: 10px;
+        margin-top: 10px;
+        color: #4f46e5;
+    }
+    @media print {
+        body { background: white; padding: 0; }
+        .doc-paper { box-shadow: none; border: none; padding: 20px; }
+        .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container mb-4 no-print text-center">
+    <button class="btn btn-primary" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button>
+</div>
+
+<div class="doc-paper" id="booking-doc">
+  <div class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <div class="mt-2 text-muted">กำลังโหลดเอกสาร...</div>
+  </div>
+</div>
+
+<script>
+const money = (n) => (Number(n)||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+async function loadBooking() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const id = urlParams.get('id');
+  if (!id) {
+    document.getElementById('booking-doc').innerHTML = '<div class="alert alert-danger">ไม่พบรหัสการจอง</div>';
+    return;
+  }
+
+  try {
+    // 1. Fetch Booking
+    const res = await fetch(`/api/bookings/${id}/public`);
+    const b = await res.json();
+    if (!res.ok) throw new Error(b.message);
+
+    // 2. Try to fetch linked Quote/Invoice for financial details
+    let financialHtml = '';
+    try {
+        const qRes = await fetch(`/api/quotes/booking/${id}/public`);
+        if (qRes.ok) {
+            const q = await qRes.json();
+            
+            // If quote accepted, try to get invoice for actual payment info
+            let paidAmount = 0;
+            let paymentStatus = 'Unpaid';
+            if (q.convertedToInvoiceId) {
+                const iRes = await fetch(`/api/invoices/${q.convertedToInvoiceId}/public`);
+                if (iRes.ok) {
+                    const inv = await iRes.json();
+                    paidAmount = inv.amountPaid || 0;
+                    paymentStatus = inv.paymentStatus;
+                }
+            }
+
+            financialHtml = `
+              <div class="financial-card">
+                <h5 class="fw-bold mb-3">💰 สรุปรายละเอียดค่าบริการ</h5>
+                <div class="financial-row">
+                    <span>ยอดรวมสุทธิ (Total):</span>
+                    <span class="fw-bold">${money(q.grandTotal)} บาท</span>
+                </div>
+                ${q.requiredDeposit > 0 ? `
+                <div class="financial-row">
+                    <span>เงินมัดจำที่ต้องชำระ (Deposit Required):</span>
+                    <span class="text-primary fw-bold">${money(q.requiredDeposit)} บาท</span>
+                </div>
+                ` : ''}
+                <div class="financial-row">
+                    <span>ชำระแล้ว (Paid):</span>
+                    <span class="text-success fw-bold">${money(paidAmount)} บาท</span>
+                </div>
+                <div class="financial-row grand-total">
+                    <span>ยอดคงเหลือ (Balance):</span>
+                    <span>${money(Math.max(0, q.grandTotal - paidAmount))} บาท</span>
+                </div>
+                <div class="mt-3 small text-muted text-end">
+                    สถานะการชำระเงิน: <span class="badge ${paymentStatus === 'Paid' ? 'bg-success' : (paymentStatus === 'Partial' ? 'bg-warning text-dark' : 'bg-secondary')}">${paymentStatus === 'Paid' ? 'ชำระเงินครบแล้ว' : (paymentStatus === 'Partial' ? 'มัดจำแล้ว/ชำระบางส่วน' : 'ยังไม่ได้ชำระเงิน')}</span>
+                </div>
+              </div>
+            `;
+        }
+    } catch (err) { console.warn('Financial load failed', err); }
+
+    const dateStr = new Date(b.date).toLocaleDateString('th-TH', { 
+        year: 'numeric', month: 'long', day: 'numeric' 
+    });
+
+    document.getElementById('booking-doc').innerHTML = `
+      <div class="d-flex justify-content-between align-items-start mb-5">
+        <div>
+          <div style="width: 60px; height: 60px; background: #4f46e5; color: #fff; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; margin-bottom: 15px;">M</div>
+          <h2 class="fw-bold m-0" style="color:#1e1b4b">ใบยืนยันการจองคิว</h2>
+          <div class="text-muted">Booking Confirmation</div>
+        </div>
+        <div class="text-end">
+          <div class="fw-bold h5 mb-1">เลขที่: BK-${b._id.slice(-6).toUpperCase()}</div>
+          <div class="text-muted small">วันที่ออกเอกสาร: ${new Date().toLocaleDateString('th-TH')}</div>
+        </div>
+      </div>
+
+      <div class="row mb-5">
+        <div class="col-7">
+          <div class="text-muted small text-uppercase fw-bold mb-2">ข้อมูลลูกค้า</div>
+          <div class="fw-bold fs-5" style="color:#1e1b4b">${b.customer}</div>
+          <div class="text-muted">โทร: ${b.contactPhone || '-'}</div>
+        </div>
+        <div class="col-5 text-end">
+          <div class="text-muted small text-uppercase fw-bold mb-2">สถานะการจอง</div>
+          <div class="h3 fw-bold ${b.status === 'Confirmed' ? 'status-confirmed' : 'text-warning'}">${b.status === 'Confirmed' ? 'ยืนยันแล้ว ✅' : 'รอยืนยัน'}</div>
+        </div>
+      </div>
+
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered align-middle">
+          <thead style="background: #f8fafc">
+            <tr>
+              <th class="py-3">รายละเอียดบริการ</th>
+              <th class="text-center py-3">วันที่และเวลา</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="py-4">
+                <div class="fw-bold fs-5 mb-1" style="color:#1e1b4b">${b.bookingType}</div>
+                <div class="text-muted small">${b.details || 'ไม่มีรายละเอียดเพิ่มเติม'}</div>
+              </td>
+              <td class="text-center py-4">
+                <div class="fw-bold h5 mb-0">${dateStr}</div>
+                <div class="text-primary fw-bold">${b.startTime} - ${b.endTime} น.</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      ${financialHtml}
+
+      <div class="mt-5 pt-4 border-top">
+        <div class="row align-items-center">
+          <div class="col-8">
+            <p class="small text-muted mb-0">
+                * กรุณาแสดงเอกสารนี้หรือแจ้งชื่อเมื่อเข้ารับบริการ<br>
+                * หากต้องการเลื่อนนัด กรุณาแจ้งล่วงหน้าอย่างน้อย 3 วัน<br>
+                * ขอบคุณที่ไว้วางใจใช้บริการของ My-Studio
+            </p>
+          </div>
+          <div class="col-4 text-center">
+            <div style="height: 50px;"></div>
+            <div class="border-top pt-2 small fw-bold">Studio Manager / Admin</div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    document.getElementById('booking-doc').innerHTML = `<div class="alert alert-danger">เกิดข้อผิดพลาด: ${err.message}</div>`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadBooking);
+</script>
+</body>
+</html>

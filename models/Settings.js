@@ -24,8 +24,9 @@ const settingsSchema = new mongoose.Schema({
     lineCustomerSecret: String,
     lineAdminAccessToken: String,
     lineAdminSecret: String,
-    geminiApiKey: String,
-  }
-}, { timestamps: true });
+    ollamaUrl: { type: String, default: 'http://localhost:11434' },
+    ollamaModel: { type: String, default: 'llama3' }
+    }
+    }, { timestamps: true });
 
 module.exports = mongoose.models.Settings || mongoose.model('Settings', settingsSchema);

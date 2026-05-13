@@ -18,6 +18,7 @@ const invoiceSchema = new mongoose.Schema({
   discount:      { type: Number, default: 0, min: 0 },
   vat:           { type: Number, default: 0 },
   grandTotal:    { type: Number, default: 0 },
+  requiredDeposit: { type: Number, default: 0, min: 0 },
   issueDate:     { type: Date, default: Date.now },
   dueDate:       Date,
   paymentStatus: { type: String, enum: ['Unpaid','Partial','Paid'], default: 'Unpaid' },

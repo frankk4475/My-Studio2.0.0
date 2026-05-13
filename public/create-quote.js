@@ -116,6 +116,7 @@ document.getElementById('create-quote-form')?.addEventListener('submit', async (
     creditTerm:      Number(document.getElementById('cq-creditTerm').value || 0),
     projectName:     document.getElementById('cq-projectName').value.trim(),
     reference:       document.getElementById('cq-reference').value.trim(),
+    requiredDeposit: Number(document.getElementById('cq-requiredDeposit').value || 0),
     items
   };
 

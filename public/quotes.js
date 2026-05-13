@@ -135,8 +135,57 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Create Logic ---
+  const btnCreate = document.getElementById('btn-create-quote');
+  btnCreate?.addEventListener('click', () => {
+    const bookingId = document.getElementById('cq-bookingId').value;
+    if (!bookingId) {
+        alert('กรุณาเลือกรายการจองจากหน้า "การจอง" เพื่อสร้างใบเสนอราคาครับ');
+        // Prevent modal from showing if using Bootstrap data-bs-toggle
+        const modal = bootstrap.Modal.getInstance(document.getElementById('createQuoteModal'));
+        if (modal) modal.hide();
+        location.href = '/index.html';
+    }
+  });
+
   cqAddItemBtn?.addEventListener('click', () => addRow(cqItemsContainer, {}, 'cq'));
   
+  // AI Suggest Logic
+  const aiSuggestBtn = document.getElementById('btn-ai-suggest');
+  aiSuggestBtn?.addEventListener('click', async () => {
+    const bookingId = document.getElementById('cq-bookingId').value;
+    if (!bookingId) {
+      alert('AI แนะนำข้อมูลได้ดีที่สุดเมื่อสร้างจากรายการจองครับ');
+      return;
+    }
+
+    const originalText = aiSuggestBtn.innerHTML;
+    aiSuggestBtn.innerHTML = '⌛ กำลังวิเคราะห์...';
+    aiSuggestBtn.disabled = true;
+
+    try {
+      const token = sessionStorage.getItem('authToken');
+      const res = await fetch('/api/ai/suggest-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ bookingId })
+      });
+      const data = await res.json();
+      if (res.ok && data.suggestions) {
+        cqItemsContainer.innerHTML = '';
+        data.suggestions.forEach(it => addRow(cqItemsContainer, it, 'cq'));
+        recalcCreateTotal();
+        window.layout?.showToast('AI แนะนำรายการให้แล้วครับ', 'success');
+      } else {
+        throw new Error(data.message || 'ไม่สามารถขอคำแนะนำได้');
+      }
+    } catch (err) {
+      alert('AI Error: ' + err.message);
+    } finally {
+      aiSuggestBtn.innerHTML = originalText;
+      aiSuggestBtn.disabled = false;
+    }
+  });
+
   createQuoteForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const items = Array.from(cqItemsContainer.querySelectorAll('.item-row')).map(row => ({
@@ -148,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!items.length) return alert('กรุณาเพิ่มอย่างน้อย 1 รายการ');
 
     const payload = {
+      bookingId: document.getElementById('cq-bookingId').value,
       customerName: document.getElementById('cq-customerName').value.trim(),
       projectName: document.getElementById('cq-projectName').value.trim(),
       customerTaxId: document.getElementById('cq-customerTaxId').value.trim(),
@@ -164,7 +214,9 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Failed to create quote');
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to create quote');
       
       bootstrap.Modal.getInstance(document.getElementById('createQuoteModal'))?.hide();
       window.layout?.showToast('สร้างใบเสนอราคาสำเร็จ', 'success');
@@ -271,6 +323,31 @@ document.addEventListener('DOMContentLoaded', () => {
     cqItemsContainer.innerHTML = '';
     addRow(cqItemsContainer, {}, 'cq');
     recalcCreateTotal();
+  }
+
+  // Auto-open create modal if bookingId is in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const bookingId = urlParams.get('bookingId');
+  if (bookingId) {
+    (async () => {
+      const token = sessionStorage.getItem('authToken');
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const b = await res.json();
+        document.getElementById('cq-bookingId').value = b._id;
+        document.getElementById('cq-customerName').value = b.customer;
+        document.getElementById('cq-projectName').value = b.bookingType;
+        document.getElementById('cq-customerAddress').value = b.details || '';
+        
+        cqItemsContainer.innerHTML = '';
+        addRow(cqItemsContainer, { description: b.bookingType, quantity: 1, price: 0 }, 'cq');
+        
+        const modal = new bootstrap.Modal(document.getElementById('createQuoteModal'));
+        modal.show();
+      }
+    })();
   }
   
   searchInput?.addEventListener('input', applyFilter);

@@ -20,6 +20,7 @@ const quoteSchema = new mongoose.Schema({
   vat:              { type: Number, default: 0 },
   grandTotal:       { type: Number, default: 0 },
   includeVat:       { type: Boolean, default: false },
+  requiredDeposit:  { type: Number, default: 0, min: 0 },
   status:           { type: String, enum: ['Draft','Sent','Accepted','Declined'], default: 'Draft' },
   convertedToInvoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
   createdAt:        { type: Date, default: Date.now }

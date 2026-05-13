@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
       Invoice.countDocuments()
     ]);
     res.json({ data: rows, total, page: Number(page), limit: lim });
-  } catch (e) { res.status(500).json({ message: 'Error fetching invoices.' }); }
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error fetching invoices.' }); }
 });
 
 router.get('/:id', async (req, res) => {
@@ -21,7 +21,16 @@ router.get('/:id', async (req, res) => {
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
     res.json(invoice);
-  } catch (e) { res.status(500).json({ message: 'Error fetching invoice.' }); }
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error fetching invoice.' }); }
+});
+
+// GET /api/invoices/:id/public (Public access)
+router.get('/:id/public', async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
+    res.json(invoice);
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error fetching public invoice.' }); }
 });
 
 router.put('/:id', async (req, res) => {

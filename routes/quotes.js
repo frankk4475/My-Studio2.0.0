@@ -3,6 +3,7 @@ const router = express.Router();
 const Quote = require('../models/Quote');
 const Booking = require('../models/Booking');
 const Invoice = require('../models/Invoice');
+const lineService = require('../services/lineService');
 
 // utils
 const toAmount = (v, minZero = true) => {
@@ -46,14 +47,27 @@ router.get('/', async (req, res) => {
     const quotes = await Quote.find().sort({ createdAt: -1 }).lean();
     res.json({ data: quotes });
   } catch (e) {
+    console.error(e);
     res.status(500).json({ message: 'Error fetching quotes.' });
+  }
+});
+
+// GET /api/quotes/booking/:bookingId/public (Move this up to avoid interception)
+router.get('/booking/:bookingId/public', async (req, res) => {
+  try {
+    const quote = await Quote.findOne({ bookingId: req.params.bookingId }).sort({ createdAt: -1 });
+    if (!quote) return res.status(404).json({ message: 'No quote found for this booking.' });
+    res.json(quote);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error fetching quote for booking.' });
   }
 });
 
 // POST /api/quotes
 router.post('/', async (req, res) => {
   try {
-    const { bookingId, items = [], discount: rawDisc = 0, customerName, contactName, customerAddress, customerTaxId, vatRate, includeVat } = req.body || {};
+    const { bookingId, items = [], discount: rawDisc = 0, customerName, contactName, customerAddress, customerTaxId, vatRate, includeVat, requiredDeposit = 0 } = req.body || {};
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ message: 'Booking not found for this quote.' });
 
@@ -74,14 +88,34 @@ router.post('/', async (req, res) => {
       vatRate: totals.vatRate,
       vat: totals.vat,
       grandTotal: totals.grandTotal,
-      includeVat: !!includeVat
+      includeVat: !!includeVat,
+      requiredDeposit: Number(requiredDeposit || 0)
     });
 
     await quote.save();
+
+    // Trigger LINE notification
+    if (booking.lineUserId) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        await lineService.sendQuoteNotification(booking.lineUserId, quote, baseUrl);
+    }
+
     res.status(201).json(quote);
   } catch (e) {
     console.error('Error creating quote:', e);
     res.status(400).json({ message: 'Error creating quote.' });
+  }
+});
+
+// GET /api/quotes/:id/public (Public access)
+router.get('/:id/public', async (req, res) => {
+  try {
+    const quote = await Quote.findById(req.params.id);
+    if (!quote) return res.status(404).json({ message: 'Quote not found.' });
+    res.json(quote);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error fetching public quote.' });
   }
 });
 
@@ -92,6 +126,7 @@ router.get('/:id', async (req, res) => {
     if (!quote) return res.status(404).json({ message: 'Quote not found.' });
     res.json(quote);
   } catch (e) {
+    console.error(e);
     res.status(500).json({ message: 'Error fetching quote.' });
   }
 });
@@ -99,7 +134,7 @@ router.get('/:id', async (req, res) => {
 // PUT /api/quotes/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { status, items, discount, vatRate, includeVat, customerName, contactName, customerTaxId, customerAddress } = req.body || {};
+    const { status, items, discount, vatRate, includeVat, customerName, contactName, customerTaxId, customerAddress, requiredDeposit } = req.body || {};
     const q = await Quote.findById(req.params.id);
     if (!q) return res.status(404).json({ message: 'Quote not found' });
 
@@ -108,6 +143,7 @@ router.put('/:id', async (req, res) => {
     if (vatRate !== undefined) q.vatRate = toAmount(vatRate);
     if (includeVat !== undefined) q.includeVat = !!includeVat;
     if (status) q.status = status;
+    if (requiredDeposit !== undefined) q.requiredDeposit = toAmount(requiredDeposit);
 
     if (customerName !== undefined) q.customerName = customerName;
     if (contactName !== undefined) q.contactName = contactName;
@@ -147,6 +183,7 @@ router.put('/:id', async (req, res) => {
         discount: q.discount,
         vat: q.vat,
         grandTotal: q.grandTotal,
+        requiredDeposit: q.requiredDeposit || 0,
         issueDate,
         dueDate,
         paymentStatus: 'Unpaid'
@@ -172,6 +209,7 @@ router.delete('/:id', async (req, res) => {
     if (!quote) return res.status(404).json({ message: 'Quote not found.' });
     res.json({ message: 'Quote deleted successfully.' });
   } catch (e) {
+    console.error(e);
     res.status(500).json({ message: 'Error deleting quote.' });
   }
 });

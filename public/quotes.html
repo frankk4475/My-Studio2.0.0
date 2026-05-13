@@ -72,6 +72,10 @@
               <label class="form-label">ชื่อโครงการ / งาน</label>
               <input type="text" id="cq-projectName" class="form-control" placeholder="ระบุชื่อโปรเจกต์">
             </div>
+            <div class="col-md-6">
+              <label class="form-label">เงินมัดจำที่ต้องชำระ (Deposit)</label>
+              <input type="number" id="cq-requiredDeposit" class="form-control" value="0">
+            </div>
             <div class="col-md-4">
               <label class="form-label">เลขผู้เสียภาษี</label>
               <input type="text" id="cq-customerTaxId" class="form-control">
@@ -88,6 +92,11 @@
               <label class="form-label">ที่อยู่ลูกค้า</label>
               <textarea id="cq-customerAddress" class="form-control" rows="2"></textarea>
             </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold m-0">รายการสินค้า/บริการ</h6>
+            <button type="button" class="btn btn-sm btn-outline-info" id="btn-ai-suggest">✨ AI ช่วยแนะนำรายการ</button>
           </div>
 
           <div class="table-responsive">

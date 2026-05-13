@@ -167,15 +167,19 @@
 
                 <!-- 3. API Integrations -->
                 <div class="tab-pane fade" id="nav-api" role="tabpanel">
-                  <h4 class="fw-bold mb-1">การเชื่อมต่อภายนอก</h4>
-                  <p class="text-muted small mb-4">เชื่อมต่อกับระบบ LINE Bot และ AI Gemini เพื่อเพิ่มความอัจฉริยะ</p>
+                  <h4 class="fw-bold mb-1">การเชื่อมต่อ AI & LINE</h4>
+                  <p class="text-muted small mb-4">เชื่อมต่อกับระบบ LINE Bot และระบบ AI ท้องถิ่น (Ollama) เพื่อความรวดเร็วและเป็นส่วนตัว</p>
 
                   <form id="form-api">
-                    <div class="form-section-title">Google Gemini AI</div>
+                    <div class="form-section-title">Local AI (Ollama)</div>
                     <div class="mb-4">
-                      <label class="form-label fw-bold">Gemini API Key</label>
-                      <input type="password" name="geminiApiKey" class="form-control" placeholder="AIzaSy...">
-                      <div class="small text-muted mt-1">ใช้สำหรับระบบวิเคราะห์การจองและแนะนำรายการใบเสนอราคา</div>
+                      <label class="form-label fw-bold">Ollama API URL</label>
+                      <input type="text" name="ollamaUrl" class="form-control" placeholder="http://localhost:11434">
+                      <div class="small text-muted mt-1">รัน AI ในเครื่องตัวเองฟรี (ต้องรัน ollama run llama3 ก่อน)</div>
+                    </div>
+                    <div class="mb-4">
+                      <label class="form-label fw-bold">โมเดลที่ใช้ (Model)</label>
+                      <input type="text" name="ollamaModel" class="form-control" placeholder="llama3">
                     </div>
 
                     <div class="form-section-title">LINE Bot (Customer Side)</div>

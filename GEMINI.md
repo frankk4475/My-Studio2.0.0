@@ -1,6 +1,20 @@
 # My-Studio 2.0.0 - Development Notes
 
-## Recent Updates (2026-05-13)
+## Recent Updates (2026-05-14)
+
+### v2.3.0 - The Local AI Revolution
+- **Full Local AI Integration:** Replaced Google Gemini with **Ollama (Local AI)** across the entire system.
+  - **No API Costs:** 100% free AI processing using Llama 3 running on the local machine.
+  - **Privacy:** Data no longer leaves the local environment for AI processing.
+- **Thai Language Enforcement:** Re-engineered AI prompts to strictly respond in Thai with polite particles (ครับ/ค่ะ), overcoming Llama 3's English-centric bias.
+- **Webhook Stability Fix:**
+  - **Infinite Loop Protection:** Implemented "Event Deduplication" using a 60-second in-memory cache to ignore duplicate LINE webhooks.
+  - **Async Processing:** Refactored the webhook to respond with 200 OK immediately, preventing LINE timeout retries during long AI thinking periods.
+- **System-Wide AI Hub:**
+  - Added a dedicated AI Assistant tab in the Booking Edit modal.
+  - Integrated AI-powered Shot Lists, Equipment Recommendations, and Email Drafting.
+- **Settings Modernization:** Updated the Settings UI and Schema to support local Ollama configuration (URL & Model name) directly from the dashboard.
+- **Dependency Update:** Added `axios` for reliable local AI communication.
 
 ### v2.2.0 - Communication & Calendar Restoration
 - **Staff Messaging Hub:** Added a dedicated interface in the Employee module to send broadcast LINE messages to staff using the Admin Bot.

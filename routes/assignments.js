@@ -13,6 +13,7 @@ router.get('/', async (req, res) => {
       .sort({ createdAt: -1 });
     res.json(list);
   } catch (e) {
+    console.error(e);
     res.status(500).json({ message: e.message });
   }
 });
@@ -27,6 +28,22 @@ router.get('/:id', async (req, res) => {
     if (!item) return res.status(404).json({ message: 'Assignment not found' });
     res.json(item);
   } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: e.message });
+  }
+});
+
+// GET single assignment (Public)
+router.get('/:id/public', async (req, res) => {
+  try {
+    const item = await Assignment.findById(req.params.id)
+      .populate('bookingId')
+      .populate('employeeId', 'username displayName jobTitle')
+      .populate('equipmentIds');
+    if (!item) return res.status(404).json({ message: 'Assignment not found' });
+    res.json(item);
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ message: e.message });
   }
 });
@@ -83,6 +100,7 @@ router.put('/:id', async (req, res) => {
     await assignment.save();
     res.json(assignment);
   } catch (e) {
+    console.error(e);
     res.status(400).json({ message: e.message });
   }
 });

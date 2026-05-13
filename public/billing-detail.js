@@ -12,15 +12,24 @@ const fmtDate = (d) => {
 const q = (k) => new URLSearchParams(location.search).get(k);
 
 function token() {
-  const t = sessionStorage.getItem('authToken');
-  if (!t) { location.replace('/login.html'); throw new Error('no token'); }
-  return t;
+  return sessionStorage.getItem('authToken');
 }
-async function apiGet(path, {allow404=false} = {}){
-  const r = await fetch(path,{ headers:{ Accept:'application/json', Authorization:'Bearer '+token() }});
+
+async function apiGet(path, {allow404=false, publicPath=null} = {}){
+  const t = token();
+  const headers = { Accept:'application/json' };
+  if (t) headers.Authorization = 'Bearer '+t;
+
+  let r = await fetch(path,{ headers });
+  
+  if ((r.status === 401 || r.status === 403) && publicPath) {
+    console.log('🔓 Public access mode');
+    r = await fetch(publicPath, { headers: { Accept: 'application/json' } });
+  }
+
   const ct = r.headers.get('content-type')||'';
   const body = ct.includes('json') ? await r.json().catch(()=>null) : await r.text().catch(()=>null);
-  if (r.status===401||r.status===403){ location.replace('/login.html?reason=expired'); throw new Error('unauthorized'); }
+  
   if (r.status===404 && allow404) return null;
   if (!r.ok) throw new Error(typeof body==='string'? body : (body?.message||'Request failed'));
   return body;
@@ -102,14 +111,18 @@ function renderInvoice(inv){
 document.addEventListener('DOMContentLoaded', async () => {
   try{
     const id = q('id');
-    if (!id){ location.replace('/invoices.html'); return; }
+    if (!id){ 
+      if (token()) location.replace('/invoices.html');
+      else document.body.innerHTML = '<div class="container py-5"><h3>ไม่พบรหัสใบแจ้งหนี้</h3></div>';
+      return; 
+    }
 
     // 1) settings (ยอม 404) + เติมแบรนด์/โลโก้
-    const settings = await apiGet('/api/settings', {allow404:true}) || {};
+    const settings = await apiGet('/api/settings', {allow404:true, publicPath:'/api/settings/public'}) || {};
     applyBrand(settings);
 
     // 2) invoice
-    const inv = await apiGet('/api/invoices/' + encodeURIComponent(id));
+    const inv = await apiGet('/api/invoices/' + encodeURIComponent(id), { publicPath: `/api/invoices/${id}/public` });
     renderInvoice(inv);
 
   }catch(err){

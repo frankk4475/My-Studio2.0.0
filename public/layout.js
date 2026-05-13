@@ -5,22 +5,46 @@
 
 const layout = {
   inject() {
-    this.checkAuth();
-    this.sidebar();
-    this.topbar();
-    this.setupEvents();
-    this.initSocket();
+    const isPublic = this.checkAuth();
+    const hasToken = sessionStorage.getItem('authToken');
+
+    if (hasToken) {
+      this.sidebar();
+      this.topbar();
+      this.setupEvents();
+      this.initSocket();
+    } else if (isPublic) {
+      // Clean up layout for public pages
+      const mainWrapper = document.querySelector('.main-wrapper');
+      if (mainWrapper) mainWrapper.style.marginLeft = '0';
+      const sidebarContainer = document.getElementById('sidebar-container');
+      if (sidebarContainer) sidebarContainer.style.display = 'none';
+      const topbarContainer = document.getElementById('topbar-container');
+      if (topbarContainer) topbarContainer.style.display = 'none';
+    }
     this.addToastContainer();
   },
 
   checkAuth() {
-    const isPublicPage = ['/login.html', '/setup.html', '/'].includes(window.location.pathname);
+    const publicPages = [
+        '/login.html', 
+        '/setup.html', 
+        '/register.html', 
+        '/quote-detail.html', 
+        '/billing-detail.html',
+        '/receipt-detail.html',
+        '/loan-detail.html',
+        '/booking-detail.html',
+        '/'
+    ];
+    const isPublicPage = publicPages.includes(window.location.pathname);
     const hasToken = sessionStorage.getItem('authToken');
 
     if (!isPublicPage && !hasToken) {
       console.warn('🔒 Unauthorized access, redirecting to login...');
       window.location.replace('/login.html?reason=expired');
     }
+    return isPublicPage;
   },
 
   initSocket() {

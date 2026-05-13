@@ -61,26 +61,33 @@ async function callGemini(prompt, options = {}) {
  * Specialized function to parse booking details from a message
  */
 async function parseBooking(text) {
-  const prompt = `Extract booking information from the following Thai or English message:
+  const prompt = `Extract booking information from the following Thai or English message. 
+  The user might type in any format (structured or natural language). 
+  Your goal is to extract the details as accurately as possible.
+
+  Message to analyze:
   ---
   "${text}"
   ---
+
   Return a JSON object with EXACTLY these fields:
   {
-    "bookingType": "string or null",
-    "date": "YYYY-MM-DD or null",
+    "bookingType": "string (e.g., Wedding, Portrait, Event) or null",
+    "date": "YYYY-MM-DD (Universal ISO format) or null",
     "startTime": "HH:mm or null",
     "endTime": "HH:mm or null",
     "contactPhone": "string or null",
-    "details": "string or null",
-    "isBooking": boolean (true if the message is a booking request)
+    "details": "string (any extra info provided) or null",
+    "isBooking": boolean (true if the message clearly intends to book or inquire about a specific slot)
   }
   
-  Note: 
-  - The current year is 2026.
-  - If the user provides a time range like "10-12", convert to "10:00" and "12:00".
-  - If the date is relative (e.g., "พรุ่งนี้" - tomorrow), calculate it based on today's date: ${new Date().toISOString().split('T')[0]}.
-  - Response must be ONLY valid JSON.`;
+  Critical Guidelines:
+  - Current Date Context: Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+  - Thai Month Handling: Recognize Thai months (ม.ค., ก.พ., ..., ธ.ค.) and convert to numeric months.
+  - Thai Year Handling: If the user provides a Buddhist Era year (e.g., 2569), convert it to Common Era (2026).
+  - Time Range: If the user says "10 โมง ถึง เที่ยง", convert to "10:00" and "12:00".
+  - Flexible Parsing: Even if the text is messy, try your best to find a date and time.
+  - Response Format: Return ONLY valid JSON. No conversational text or markdown code blocks.`;
 
   try {
     const response = await callGemini(prompt, { model: 'gemini-flash-latest' });

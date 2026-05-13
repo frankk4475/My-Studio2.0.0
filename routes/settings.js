@@ -17,6 +17,19 @@ async function getSingleton() {
   return s;
 }
 
+// GET /api/settings/public (Public access)
+router.get('/public', async (req, res) => {
+  try {
+    const s = await getSingleton();
+    res.json({
+        business: s.business,
+        tax: s.tax
+    });
+  } catch (e) {
+    res.status(500).json({ message: 'Error.' });
+  }
+});
+
 // GET /api/settings
 router.get('/', async (req, res) => {
   try {
@@ -57,19 +70,19 @@ router.put('/', async (req, res) => {
         lineCustomerSecret:      incoming.apiKeys?.lineCustomerSecret      ?? current.apiKeys?.lineCustomerSecret ?? '',
         lineAdminAccessToken:    incoming.apiKeys?.lineAdminAccessToken    ?? current.apiKeys?.lineAdminAccessToken ?? '',
         lineAdminSecret:         incoming.apiKeys?.lineAdminSecret         ?? current.apiKeys?.lineAdminSecret ?? '',
-        geminiApiKey:           incoming.apiKeys?.geminiApiKey           ?? current.apiKeys?.geminiApiKey ?? '',
-      }
-    };
+        ollamaUrl:               incoming.apiKeys?.ollamaUrl               ?? current.apiKeys?.ollamaUrl ?? 'http://localhost:11434',
+        ollamaModel:             incoming.apiKeys?.ollamaModel             ?? current.apiKeys?.ollamaModel ?? 'llama3'
+        }
+        };
 
-    const saved = await Settings.findByIdAndUpdate(current._id, update, { new: true });
-    console.log('✅ Settings saved successfully');
-    
-    // Refresh services if possible
-    try {
-      require('../services/lineService').refreshConfig();
-      require('../services/geminiService').refreshConfig();
-    } catch (refreshErr) {
-      console.warn('⚠️ Services not refreshed yet:', refreshErr.message);
+        const saved = await Settings.findByIdAndUpdate(current._id, update, { new: true });
+        console.log('✅ Settings saved successfully');
+
+        // Refresh services if possible
+        try {
+        require('../services/lineService').refreshConfig();
+        require('../services/ollamaService').refreshConfig?.();
+        } catch (refreshErr) {      console.warn('⚠️ Services not refreshed yet:', refreshErr.message);
     }
 
     res.json(saved);

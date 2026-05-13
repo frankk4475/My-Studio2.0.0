@@ -93,7 +93,7 @@ router.post('/login', authLimiter, async (req, res) => {
       role: user.role 
     }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '8h' });
     res.json({ token, role: user.role, displayName: user.displayName });
-  } catch (e) { res.status(500).json({ message: 'Server error.' }); }
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Server error.' }); }
 });
 
 router.get('/list', auth, isAdmin, async (req, res) => {

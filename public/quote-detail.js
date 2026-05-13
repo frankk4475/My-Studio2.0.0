@@ -7,14 +7,28 @@ const money = (n) => (Number(n)||0).toLocaleString('th-TH',{minimumFractionDigit
 const fmtDate = (d) => { if(!d) return '-'; const x = new Date(d); return isNaN(x)?'-':x.toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'2-digit'}); };
 const qparam = (k) => new URLSearchParams(location.search).get(k);
 
-function token(){ const t = sessionStorage.getItem('authToken'); if(!t){ location.replace('/login.html'); throw new Error('no token'); } return t; }
-async function apiGet(path,{allow404=false}={}){
-  const r = await fetch(path,{ headers:{ Accept:'application/json', Authorization:'Bearer '+token() }});
+function token(){ return sessionStorage.getItem('authToken'); }
+
+async function apiGet(path,{allow404=false, publicPath=null}={}){
+  const t = token();
+  const headers = { Accept:'application/json' };
+  if (t) headers.Authorization = 'Bearer '+t;
+
+  let r = await fetch(path,{ headers });
+  
+  // If unauthorized and a public path is provided, try public path
+  if ((r.status === 401 || r.status === 403) && publicPath) {
+    console.log('🔓 Authenticated access failed, trying public path...');
+    r = await fetch(publicPath, { headers: { Accept: 'application/json' } });
+  }
+
   const ct = r.headers.get('content-type')||'';
   const body = ct.includes('json')? await r.json().catch(()=>null): await r.text().catch(()=>null);
-  if (r.status===401||r.status===403){ location.replace('/login.html?reason=expired'); throw new Error('unauthorized'); }
-  if (r.status===404 && allow404) return null;
-  if (!r.ok) throw new Error(typeof body==='string'? body : (body?.message||'Request failed'));
+  
+  if (!r.ok) {
+      if (allow404 && r.status === 404) return null;
+      throw new Error(typeof body==='string'? body : (body?.message||'Request failed'));
+  }
   return body;
 }
 
@@ -83,44 +97,67 @@ function renderQuote(q){
   $('sum-sub')   && ($('sum-sub').textContent   = money(subtotal));
   $('sum-disc')  && ($('sum-disc').textContent  = money(discount));
   $('sum-grand') && ($('sum-grand').textContent = money(grand));
+
+  if (q.requiredDeposit > 0) {
+      if ($('deposit-row')) $('deposit-row').style.display = 'flex';
+      if ($('sum-deposit')) $('sum-deposit').textContent = money(q.requiredDeposit);
+  }
 }
 
 /* =============== Boot =============== */
 document.addEventListener('DOMContentLoaded', async () => {
   try{
     const id = qparam('id');
-    if (!id){ document.body.innerHTML = `<div class="sheet"><h3>เกิดข้อผิดพลาด: ไม่พบรหัสเอกสาร</h3></div>`; return; }
+    if (!id){ 
+      document.body.innerHTML = `<div class="sheet"><h3>เกิดข้อผิดพลาด: ไม่พบรหัสเอกสาร</h3></div>`; 
+      return; 
+    }
 
-    // settings (ยอม 404)
-    const settings = await apiGet('/api/settings', {allow404:true}) || {};
+    // 1. Load Settings
+    const settings = await apiGet('/api/settings', {allow404:true, publicPath:'/api/settings/public'}) || {};
     renderSeller(settings);
 
-    // quote
-    const q = await apiGet('/api/quotes/' + encodeURIComponent(id));
+    // 2. Load Quote
+    const q = await apiGet('/api/quotes/' + encodeURIComponent(id), { publicPath:`/api/quotes/${id}/public` });
     renderQuote(q);
 
-    // convert → invoice
+    // 3. Handle Admin-only actions
     const convertBtn = $('convert-btn');
-    convertBtn?.addEventListener('click', async () => {
-      try{
-        convertBtn.disabled = true; convertBtn.textContent = 'กำลังแปลง...';
-        const r = await fetch('/api/quotes/' + encodeURIComponent(id), {
-          method:'PUT',
-          headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token() },
-          body: JSON.stringify({ status:'Accepted' })
+    if (!token()) {
+        if (convertBtn) convertBtn.style.display = 'none';
+    } else if (convertBtn) {
+        convertBtn.addEventListener('click', async () => {
+          try{
+            convertBtn.disabled = true; 
+            const originalText = convertBtn.textContent;
+            convertBtn.textContent = 'กำลังแปลง...';
+            
+            const r = await fetch('/api/quotes/' + encodeURIComponent(id), {
+              method:'PUT',
+              headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token() },
+              body: JSON.stringify({ status:'Accepted' })
+            });
+            
+            if (r.status === 401 || r.status === 403) {
+              location.replace('/login.html?reason=expired');
+              return;
+            }
+            
+            const body = await r.json().catch(()=>null);
+            if (!r.ok) throw new Error(body?.message || 'แปลงเป็นใบแจ้งหนี้ไม่สำเร็จ');
+            
+            const invId = body?.createdInvoiceId;
+            if (invId) location.href = `/billing-detail.html?id=${invId}`;
+            else alert('อัปเดตสถานะเป็น Accepted แล้ว');
+            
+          }catch(err){ 
+            alert(err.message || 'แปลงเป็นใบแจ้งหนี้ไม่สำเร็จ'); 
+          }finally{ 
+            convertBtn.disabled = false; 
+            convertBtn.textContent = 'แปลงเป็นใบแจ้งหนี้'; 
+          }
         });
-        if (r.status === 401 || r.status === 403) {
-          location.replace('/login.html?reason=expired');
-          return;
-        }
-        const body = await r.json().catch(()=>null);
-        if (!r.ok) throw new Error(body?.message || 'แปลงเป็นใบแจ้งหนี้ไม่สำเร็จ');
-        const invId = body?.createdInvoiceId;
-        if (invId) location.href = `/billing-detail.html?id=${invId}`;
-        else alert('อัปเดตสถานะเป็น Accepted แล้ว (ไม่พบเลขที่ใบแจ้งหนี้ที่สร้าง)');
-      }catch(err){ alert(err.message || 'แปลงเป็นใบแจ้งหนี้ไม่สำเร็จ'); }
-      finally{ convertBtn.disabled = false; convertBtn.textContent = 'แปลงเป็นใบแจ้งหนี้'; }
-    });
+    }
 
   }catch(err){
     console.error(err);

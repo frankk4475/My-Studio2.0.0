@@ -14,17 +14,14 @@
 </head>
 <body>
 <div class="app-container">
-  <!-- Dynamic Sidebar -->
   <div id="sidebar-container"></div>
 
-  <!-- Main Wrapper -->
   <div class="main-wrapper">
-    <!-- Dynamic Topbar -->
     <div id="topbar-container"></div>
 
     <main class="content-area">
-      <!-- Stats Row -->
-      <div class="row mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+      <!-- Main Stats Row -->
+      <div class="row mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
         <div class="stat-card">
           <div class="stat-icon" style="background: var(--primary-light); color: var(--primary);">📅</div>
           <div class="stat-info">
@@ -40,42 +37,99 @@
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background: #e0f2fe; color: #0ea5e9;">💬</div>
+          <div class="stat-icon" style="background: #fee2e2; color: #f43f5e;">🧾</div>
           <div class="stat-info">
-            <h4>เชื่อมต่อ LINE</h4>
-            <div class="value" id="stat-line">0</div>
+            <h4>ยอดค้างชำระ</h4>
+            <div class="value" id="stat-unpaid">0.-</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background: #fef3c7; color: #f59e0b;">⏳</div>
+          <div class="stat-icon" style="background: #fef3c7; color: #f59e0b;">⌛</div>
           <div class="stat-info">
-            <h4>รอยืนยัน</h4>
+            <h4>รอยืนยันคิว</h4>
             <div class="value" id="stat-pending">0</div>
           </div>
         </div>
       </div>
 
-      <!-- Charts & Recent Activity -->
-      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
-        <!-- Revenue Chart -->
-        <div class="card">
-          <div class="card-header">
-            <h3 class="h6 m-0 fw-bold">สถิติรายได้ 6 เดือนล่าสุด</h3>
+      <!-- Secondary Stats (Staff & Equipment) -->
+      <div class="row mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+        <!-- Staff Summary -->
+        <div class="card p-3 border-0 shadow-sm d-flex flex-row align-items-center gap-3">
+          <div style="font-size: 32px; background: #e0f2fe; color: #0ea5e9; width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">👥</div>
+          <div class="flex-grow-1">
+            <h4 class="small fw-bold text-muted text-uppercase mb-1">พนักงานในระบบ</h4>
+            <div class="d-flex align-items-end gap-2">
+              <span class="fs-3 fw-bold" id="stat-staff-total">0</span>
+              <span class="text-muted small mb-1">คน</span>
+            </div>
           </div>
-          <div class="card-body">
-            <canvas id="revenueChart" height="280"></canvas>
+          <a href="/employees.html" class="btn btn-sm btn-light border">จัดการ</a>
+        </div>
+
+        <!-- Equipment Summary -->
+        <div class="card p-3 border-0 shadow-sm d-flex flex-row align-items-center gap-3">
+          <div style="font-size: 32px; background: #f3e8ff; color: #a855f7; width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">📦</div>
+          <div class="flex-grow-1">
+            <h4 class="small fw-bold text-muted text-uppercase mb-1">สถานะคลังอุปกรณ์</h4>
+            <div class="d-flex gap-3 mt-1">
+              <div class="text-success"><span class="fw-bold" id="stat-equip-avail">0</span> ว่าง</div>
+              <div class="text-primary"><span class="fw-bold" id="stat-equip-use">0</span> ใช้งาน</div>
+              <div class="text-danger"><span class="fw-bold" id="stat-equip-maint">0</span> ซ่อม</div>
+            </div>
+          </div>
+          <a href="/inventory.html" class="btn btn-sm btn-light border">คลัง</a>
+        </div>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+        
+        <!-- Left Column: Chart & Finances -->
+        <div class="d-flex flex-column gap-4">
+          <!-- Revenue Chart -->
+          <div class="card">
+            <div class="card-header"><h3 class="h6 m-0 fw-bold">สถิติรายได้ 6 เดือนล่าสุด</h3></div>
+            <div class="card-body"><canvas id="revenueChart" height="280"></canvas></div>
+          </div>
+
+          <!-- Financial Tasks -->
+          <div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="card p-3 bg-light border-0">
+              <div class="small fw-bold text-muted mb-2">ใบเสนอราคาที่ยังไม่ยืนยัน</div>
+              <div class="h3 fw-bold m-0" id="stat-quotes-pending">0</div>
+              <a href="/quotes.html" class="stretched-link"></a>
+            </div>
+            <div class="card p-3 bg-light border-0">
+              <div class="small fw-bold text-muted mb-2">บิลที่ค้างชำระ</div>
+              <div class="h3 fw-bold m-0 text-danger" id="stat-invoices-unpaid">0</div>
+              <a href="/invoices.html" class="stretched-link"></a>
+            </div>
           </div>
         </div>
 
-        <!-- Recent Activity -->
-        <div class="card">
-          <div class="card-header">
-            <h3 class="h6 m-0 fw-bold">การจองล่าสุด</h3>
+        <!-- Right Column: Today's Schedule & Recent -->
+        <div class="d-flex flex-column gap-4">
+          <!-- Today's Jobs -->
+          <div class="card border-primary border-top" style="border-top-width: 4px !important;">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+              <h3 class="h6 m-0 fw-bold">📅 ตารางงานวันนี้</h3>
+              <span class="badge bg-primary" id="today-jobs-count">0</span>
+            </div>
+            <div class="card-body p-0" id="today-jobs-list" style="max-height: 300px; overflow-y: auto;">
+              <div class="text-center text-muted p-4">กำลังโหลด...</div>
+            </div>
           </div>
-          <div class="card-body" id="recent-bookings-list">
-            <div class="text-center text-muted p-4">กำลังโหลดข้อมูล...</div>
+
+          <!-- Recent Activity -->
+          <div class="card">
+            <div class="card-header"><h3 class="h6 m-0 fw-bold">รายการจองล่าสุด</h3></div>
+            <div class="card-body p-0" id="recent-bookings-list">
+              <div class="text-center text-muted p-4">กำลังโหลด...</div>
+            </div>
           </div>
         </div>
+
       </div>
     </main>
   </div>

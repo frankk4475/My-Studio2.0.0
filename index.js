@@ -62,8 +62,15 @@ app.use(async (req, res, next) => {
     '/login.html', '/login.js', 
     '/setup.html', '/setup.js', 
     '/register.html', '/register.js',
-    '/api/users/check-init', '/api/users/init', 
+    '/booking-detail.html',
+    '/quote-detail.html',
+    '/billing-detail.html',
+    '/receipt-detail.html',
+    '/loan-detail.html',
+    '/api/users/check-init',
+ '/api/users/init', 
     '/api/customers/register-via-line',
+    '/api/settings/public',
     '/styles.css', '/favicon.ico', '/api/line/webhook'
   ];
   if (publicPaths.some(p => req.path === p || req.path.startsWith(p))) return next();
@@ -88,6 +95,7 @@ app.use('/api/users', require('./routes/auth'));
 const authMiddleware = async (req, res, next) => {
   if (req.path.startsWith('/api/line')) return next();
   if (req.path === '/api/customers/register-via-line') return next();
+  if (req.path.endsWith('/public')) return next(); // Publicly accessible doc APIs
   const hdr = req.headers['authorization'] || '';
   const token = /^Bearer\s+(.+)$/i.test(hdr) ? hdr.replace(/^Bearer\s+/i, '') : null;
   if (!token) return res.status(401).json({ message: 'Missing token' });

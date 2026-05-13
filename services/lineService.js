@@ -128,6 +128,140 @@ async function sendAdminMessage(to, text) {
   }
 }
 
+/**
+ * Send Booking Confirmation Flex Message
+ */
+async function sendBookingConfirmation(to, booking, baseUrl) {
+  if (!customerClient) await refreshConfig();
+  if (!customerClient || !to) return;
+
+  const dateStr = new Date(booking.date).toLocaleDateString('th-TH', { 
+    year: 'numeric', month: 'long', day: 'numeric' 
+  });
+
+  const flexMsg = {
+    type: 'flex',
+    altText: 'ยืนยันการจองคิวสำเร็จ',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          { type: 'text', text: 'ยืนยันการจองคิว', weight: 'bold', size: 'xl', color: '#ffffff' }
+        ],
+        backgroundColor: '#10b981'
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          { type: 'text', text: booking.customer, weight: 'bold', size: 'lg' },
+          { type: 'separator', margin: 'md' },
+          {
+            type: 'box',
+            layout: 'vertical',
+            margin: 'md',
+            spacing: 'sm',
+            contents: [
+              { type: 'text', text: `📅 วันที่: ${dateStr}`, size: 'sm', color: '#666666' },
+              { type: 'text', text: `⏰ เวลา: ${booking.startTime} - ${booking.endTime}`, size: 'sm', color: '#666666' },
+              { type: 'text', text: `📸 งาน: ${booking.bookingType}`, size: 'sm', color: '#666666' }
+            ]
+          }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            action: {
+              type: 'uri',
+              label: 'ดูรายละเอียดการจอง',
+              uri: `${baseUrl}/booking-detail.html?id=${booking._id}`
+            },
+            style: 'primary',
+            color: '#10b981'
+          }
+        ]
+      }
+    }
+  };
+
+  try {
+    await customerClient.pushMessage({ to, messages: [flexMsg] });
+  } catch (err) {
+    console.error('Send Booking Confirmation Error:', err);
+  }
+}
+
+/**
+ * Send Quote Flex Message
+ */
+async function sendQuoteNotification(to, quote, baseUrl) {
+  if (!customerClient) await refreshConfig();
+  if (!customerClient || !to) return;
+
+  const flexMsg = {
+    type: 'flex',
+    altText: `ใบเสนอราคาใหม่: ${quote.quoteNumber}`,
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          { type: 'text', text: 'ใบเสนอราคาใหม่', weight: 'bold', size: 'xl', color: '#ffffff' }
+        ],
+        backgroundColor: '#4f46e5'
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          { type: 'text', text: `เลขที่: ${quote.quoteNumber}`, weight: 'bold', size: 'md', color: '#4f46e5' },
+          { type: 'text', text: quote.customerName, weight: 'bold', size: 'lg', margin: 'xs' },
+          { type: 'separator', margin: 'md' },
+          {
+            type: 'box',
+            layout: 'vertical',
+            margin: 'md',
+            spacing: 'sm',
+            contents: [
+              { type: 'text', text: `โครงการ: ${quote.projectName || '-'}`, size: 'sm', color: '#666666' },
+              { type: 'text', text: `ยอดรวมสุทธิ: ${quote.grandTotal.toLocaleString()} บาท`, size: 'md', weight: 'bold', color: '#1e293b' }
+            ]
+          }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            action: {
+              type: 'uri',
+              label: 'เปิดดูใบเสนอราคา',
+              uri: `${baseUrl}/quote-detail.html?id=${quote._id}`
+            },
+            style: 'primary',
+            color: '#4f46e5'
+          }
+        ]
+      }
+    }
+  };
+
+  try {
+    await customerClient.pushMessage({ to, messages: [flexMsg] });
+  } catch (err) {
+    console.error('Send Quote Notification Error:', err);
+  }
+}
+
 module.exports = { 
   customerClient: () => customerClient, 
   adminClient: () => adminClient,
@@ -135,5 +269,7 @@ module.exports = {
   notifyAdmins, 
   sendMessage,
   sendAdminMessage,
+  sendBookingConfirmation,
+  sendQuoteNotification,
   refreshConfig 
 };

@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { callGemini } = require('../services/geminiService');
+const ollamaService = require('../services/ollamaService');
 const Booking = require('../models/Booking');
 const Quote = require('../models/Quote');
 
-// Helper to clean JSON response from Gemini
-const parseGeminiJson = (text) => {
+// Helper to clean JSON response from AI
+const parseAIJson = (text) => {
   try {
     const cleaned = text.replace(/```json|```/g, '').trim();
     return JSON.parse(cleaned);
   } catch (e) {
-    console.error('Failed to parse Gemini JSON:', e, text);
+    console.error('Failed to parse AI JSON:', e, text);
     throw new Error('AI returned invalid JSON');
   }
 };
@@ -26,19 +26,20 @@ router.post('/suggest-quote', async (req, res) => {
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     const prompt = `
-      You are an expert photography studio manager. 
-      Based on the following booking details, suggest a list of quote items (description, estimated quantity, and unit price in THB).
-      Return ONLY a JSON array of objects with keys: "description", "quantity", "price".
-      
-      Booking Details:
-      - Type: ${booking.bookingType}
-      - Customer: ${booking.customer}
-      - Details: ${booking.details}
-      - Date/Time: ${booking.date} (${booking.startTime} - ${booking.endTime})
+      คุณคือผู้จัดการสตูดิโอถ่ายภาพมืออาชีพ
+      จากรายละเอียดการจองด้านล่างนี้ ช่วยแนะนำรายการสินค้า/บริการที่ควรมีในใบเสนอราคา (รายละเอียด, จำนวนที่แนะนำ, และราคาต่อหน่วยเป็นบาท)
+      **ตอบกลับเป็น JSON array ของวัตถุที่มีคีย์: "description", "quantity", "price" เท่านั้น**
+      **รายละเอียด (description) ต้องเป็นภาษาไทย**
+
+      รายละเอียดการจอง:
+      - ประเภท: ${booking.bookingType}
+      - ลูกค้า: ${booking.customer}
+      - รายละเอียดเพิ่มเติม: ${booking.details}
+      - วันที่/เวลา: ${booking.date} (${booking.startTime} - ${booking.endTime})
     `;
 
-    const aiResponse = await callGemini(prompt);
-    const suggestions = parseGeminiJson(aiResponse);
+    const aiResponse = await ollamaService.callAI(prompt, "คุณเป็นผู้จัดการสตูดิโอ ตอบเป็น JSON ภาษาไทย");
+    const suggestions = parseAIJson(aiResponse);
     res.json({ suggestions });
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -59,15 +60,15 @@ router.post('/draft-email', async (req, res) => {
     if (!doc) return res.status(404).json({ message: 'Document not found' });
 
     const prompt = `
-      You are a professional studio assistant. Write a polite and professional email to ${doc.customerName} for the following ${type}:
-      - Number: ${type === 'quote' ? doc.quoteNumber : doc.invoiceNumber}
-      - Total Amount: ${doc.grandTotal || doc.total} THB
-      - Items: ${doc.items.map(i => i.description).join(', ')}
+      คุณคือผู้ช่วยมืออาชีพของสตูดิโอ เขียนอีเมลหรือข้อความที่เป็นทางการและสุภาพถึงคุณ ${doc.customerName} สำหรับ ${type === 'quote' ? 'ใบเสนอราคา' : 'ใบแจ้งหนี้'} นี้:
+      - เลขที่: ${type === 'quote' ? doc.quoteNumber : doc.invoiceNumber}
+      - ยอดรวม: ${doc.grandTotal || doc.total} บาท
+      - รายการ: ${doc.items.map(i => i.description).join(', ')}
       
-      The email should be professional, concise, and encourage the client to reach out with questions.
+      **ต้องเขียนเป็นภาษาไทยเท่านั้น** สุภาพ มีหางเสียง และเป็นกันเอง
     `;
 
-    const draft = await callGemini(prompt);
+    const draft = await ollamaService.callAI(prompt, "คุณเป็นเลขาสตูดิโอ ตอบเป็นภาษาไทยสุภาพ");
     res.json({ draft });
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -85,17 +86,17 @@ router.post('/shot-list', async (req, res) => {
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     const prompt = `
-      You are a creative director for a high-end photography studio.
-      Analyze this booking and suggest a comprehensive shot list, lighting setup, and equipment recommendations.
+      คุณคือ Creative Director ของสตูดิโอถ่ายภาพระดับไฮเอนด์
+      วิเคราะห์การจองนี้และแนะนำ Shot List, การจัดแสง, และอุปกรณ์ที่แนะนำ
       
-      Booking Details:
-      - Type: ${booking.bookingType}
-      - Details: ${booking.details}
+      รายละเอียดการจอง:
+      - ประเภท: ${booking.bookingType}
+      - รายละเอียดเพิ่มเติม: ${booking.details}
       
-      Return the response in a structured format with sections: "Shot List", "Lighting Setup", and "Equipment Recommendations".
+      **ต้องตอบเป็นภาษาไทยเท่านั้น** แบ่งหัวข้อให้ชัดเจน: "Shot List (รายการภาพ)", "Lighting Setup (การจัดแสง)", และ "Equipment Recommendations (อุปกรณ์ที่แนะนำ)"
     `;
 
-    const creativeDirection = await callGemini(prompt);
+    const creativeDirection = await ollamaService.callAI(prompt, "คุณเป็น Creative Director ตอบเป็นภาษาไทย");
     res.json({ creativeDirection });
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -113,18 +114,18 @@ router.post('/suggest-equipment', async (req, res) => {
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     const prompt = `
-      You are a specialized photography equipment expert.
-      Analyze the following booking details and suggest a tailored list of equipment (cameras, lenses, lighting, accessories).
+      คุณคือผู้เชี่ยวชาญด้านอุปกรณ์ถ่ายภาพ
+      วิเคราะห์รายละเอียดการจองนี้และแนะนำรายการอุปกรณ์ (กล้อง, เลนส์, ไฟ, อุปกรณ์เสริม)
       
-      Booking Details:
-      - Type: ${booking.bookingType}
-      - Details: ${booking.details}
-      - Customer: ${booking.customer}
+      รายละเอียดการจอง:
+      - ประเภท: ${booking.bookingType}
+      - รายละเอียดเพิ่มเติม: ${booking.details}
+      - ลูกค้า: ${booking.customer}
       
-      Return a structured list with brief explanations for why each piece is recommended.
+      **ต้องตอบเป็นภาษาไทยเท่านั้น** พร้อมอธิบายสั้นๆ ว่าทำไมถึงแนะนำอุปกรณ์ชิ้นนั้น
     `;
 
-    const equipmentList = await callGemini(prompt);
+    const equipmentList = await ollamaService.callAI(prompt, "คุณเป็นผู้เชี่ยวชาญด้านอุปกรณ์ ตอบเป็นภาษาไทย");
     res.json({ equipmentList });
   } catch (e) {
     res.status(500).json({ message: e.message });
