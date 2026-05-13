@@ -77,8 +77,26 @@ async function handleEvent(event, botType) {
 
   // --- ADMIN BOT LOGIC (Studio Admin office) ---
   if (botType === 'ADMIN') {
-      const isAdminInDB = await User.findOne({ lineUserId: userId, role: 'Admin' });
+      let staffUser = await User.findOne({ lineUserId: userId });
       
+      // Special Command: Link Staff Account
+      if (text.startsWith('#link-staff ')) {
+          const targetUsername = text.replace('#link-staff ', '').trim();
+          const userToLink = await User.findOne({ username: targetUsername });
+          
+          if (!userToLink) {
+              return client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `❌ ไม่พบชื่อผู้ใช้ "${targetUsername}" ในระบบครับ` }] });
+          }
+          
+          userToLink.lineUserId = userId;
+          await userToLink.save();
+          
+          // Clean up if they were accidentally added as a customer
+          await Customer.deleteOne({ lineUserId: userId });
+          
+          return client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ เชื่อมต่อบัญชี LINE กับพนักงาน "${userToLink.displayName || userToLink.username}" เรียบร้อยแล้วครับ!` }] });
+      }
+
       // Admin Commands
       if (text.includes('สรุปงาน') || text.includes('งานวันนี้')) {
           const today = new Date();
@@ -128,8 +146,17 @@ async function handleEvent(event, botType) {
 
   // --- CUSTOMER BOT LOGIC (Studio Admin) ---
   if (botType === 'CUSTOMER') {
+      // 1. Check if this is a known Staff member
+      const isStaff = await User.findOne({ lineUserId: userId });
+      if (isStaff) {
+          console.log(`👤 [STAFF] ${isStaff.username} messaged the Customer Bot.`);
+          // Staff can still use the bot, but we don't treat them as a customer record
+          // They might be testing or acting as a proxy
+      }
+
       let customer = await Customer.findOne({ lineUserId: userId });
-      if (!customer) {
+      if (!customer && !isStaff) {
+          // Only create customer if NOT a staff member
         try {
           const profile = await client.getProfile(userId);
           customer = new Customer({
@@ -165,7 +192,30 @@ async function handleEvent(event, botType) {
       
       // 1. Precise Template Triggers
       if (text === 'ลงทะเบียน') {
-        return client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📝 กรุณากรอกข้อมูลเพื่อลงทะเบียนดังนี้ครับ:\n\nชื่อ-นามสกุล:\nเบอร์โทร:\nอีเมล:\nที่อยู่:' }] });
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const host = req.get('host');
+        const regUrl = `${protocol}://${host}/register.html?userId=${userId}`;
+        
+        return client.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{
+            type: 'template',
+            altText: 'กรุณาลงทะเบียนข้อมูลลูกค้า',
+            template: {
+              type: 'buttons',
+              thumbnailImageUrl: 'https://images.unsplash.com/photo-1542744094-3a31f272c491?q=80&w=2070&auto=format&fit=crop',
+              title: 'ลงทะเบียนลูกค้า',
+              text: 'กรุณาคลิกปุ่มด้านล่างเพื่อกรอกข้อมูลลงทะเบียนครับ',
+              actions: [
+                {
+                  type: 'uri',
+                  label: '📝 เริ่มการลงทะเบียน',
+                  uri: regUrl
+                }
+              ]
+            }
+          }]
+        });
       }
       if (text === 'จอง' || text === 'จองคิว') {
         return client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📸 กรุณาแจ้งรายละเอียดการจองตามรูปแบบนี้เพื่อบันทึกเข้าระบบครับ:\n\nประเภทงาน:\nวันที่ (2026-05-30):\nเวลา (10:00-12:00):\nเบอร์โทรติดต่อ:\nรายละเอียดเพิ่มเติม:' }] });

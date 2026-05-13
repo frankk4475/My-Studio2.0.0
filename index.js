@@ -58,7 +58,14 @@ const Settings = require('./models/Settings');
 
 // 4. Init Check Middleware
 app.use(async (req, res, next) => {
-  const publicPaths = ['/setup.html', '/setup.js', '/api/users/check-init', '/api/users/init', '/styles.css', '/favicon.ico', '/api/line/webhook'];
+  const publicPaths = [
+    '/login.html', '/login.js', 
+    '/setup.html', '/setup.js', 
+    '/register.html', '/register.js',
+    '/api/users/check-init', '/api/users/init', 
+    '/api/customers/register-via-line',
+    '/styles.css', '/favicon.ico', '/api/line/webhook'
+  ];
   if (publicPaths.some(p => req.path === p || req.path.startsWith(p))) return next();
   try {
     const userCount = await User.countDocuments();
@@ -80,6 +87,7 @@ app.use('/api/users', require('./routes/auth'));
 // Auth Middleware
 const authMiddleware = async (req, res, next) => {
   if (req.path.startsWith('/api/line')) return next();
+  if (req.path === '/api/customers/register-via-line') return next();
   const hdr = req.headers['authorization'] || '';
   const token = /^Bearer\s+(.+)$/i.test(hdr) ? hdr.replace(/^Bearer\s+/i, '') : null;
   if (!token) return res.status(401).json({ message: 'Missing token' });

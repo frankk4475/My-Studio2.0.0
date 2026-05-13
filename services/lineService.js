@@ -107,11 +107,33 @@ async function sendMessage(to, text) {
   }
 }
 
+/**
+ * Send message to staff/admin using Admin Bot
+ */
+async function sendAdminMessage(to, text) {
+  if (!adminClient) await refreshConfig();
+  if (!adminClient || !to) {
+    console.warn('⚠️ LINE Service: Admin Client not ready for sendAdminMessage');
+    return;
+  }
+
+  try {
+    await adminClient.pushMessage({
+      to,
+      messages: [{ type: 'text', text }]
+    });
+  } catch (err) {
+    console.error('LINE Send Admin Message Error:', err);
+    throw err;
+  }
+}
+
 module.exports = { 
   customerClient: () => customerClient, 
   adminClient: () => adminClient,
   config, 
   notifyAdmins, 
-  sendMessage, 
+  sendMessage,
+  sendAdminMessage,
   refreshConfig 
 };

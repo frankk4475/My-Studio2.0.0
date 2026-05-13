@@ -38,6 +38,27 @@ router.post('/', async (req, res) => {
   } catch (e) { res.status(400).json({ message: 'Error.' }); }
 });
 
+router.get('/calendar', async (req, res) => {
+  try {
+    const bookings = await Booking.find().lean();
+    const events = bookings.map(b => ({
+      id: b._id,
+      title: `${b.bookingType} - ${b.customer}`,
+      start: `${new Date(b.date).toISOString().split('T')[0]}T${b.startTime || '00:00'}`,
+      end: `${new Date(b.date).toISOString().split('T')[0]}T${b.endTime || '23:59'}`,
+      extendedProps: {
+        customer: b.customer,
+        status: b.status
+      },
+      backgroundColor: b.status === 'Confirmed' ? '#10b981' : (b.status === 'Cancelled' ? '#f43f5e' : '#f59e0b'),
+      borderColor: 'transparent'
+    }));
+    res.json(events);
+  } catch (e) {
+    res.status(500).json({ message: 'Error fetching calendar data' });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);

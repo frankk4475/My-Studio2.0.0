@@ -5,11 +5,22 @@
 
 const layout = {
   inject() {
+    this.checkAuth();
     this.sidebar();
     this.topbar();
     this.setupEvents();
     this.initSocket();
     this.addToastContainer();
+  },
+
+  checkAuth() {
+    const isPublicPage = ['/login.html', '/setup.html', '/'].includes(window.location.pathname);
+    const hasToken = sessionStorage.getItem('authToken');
+
+    if (!isPublicPage && !hasToken) {
+      console.warn('🔒 Unauthorized access, redirecting to login...');
+      window.location.replace('/login.html?reason=expired');
+    }
   },
 
   initSocket() {

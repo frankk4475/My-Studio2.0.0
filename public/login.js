@@ -7,25 +7,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const reasonEl = document.getElementById('reason');
   const togglePass = document.getElementById('toggle-pass');
 
-  // ถ้ามี token อยู่แล้ว ส่งเข้าหน้า index เลย
-  const existing = sessionStorage.getItem('authToken');
-  if (existing) {
-    window.location.href = '/index.html';
-    return;
-  }
-
-  // ลบ token เก่าทิ้งเพื่อความชัวร์เมื่อมายังหน้า login
-  sessionStorage.clear();
-
-  // เติมเหตุผลถ้ามาจาก token หมดอายุ
-  const usp = new URLSearchParams(location.search);
-  if (usp.get('reason') === 'expired') {
-    reasonEl.textContent = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่';
-    reasonEl.classList.remove('d-none');
-  }
-
-  // จำ username ครั้งก่อน (quality of life)
+  // Clear existing session to prevent redirect loops and ensure a fresh start
+  const existingToken = sessionStorage.getItem('authToken');
   const lastUser = sessionStorage.getItem('lastUsername');
+  
+  sessionStorage.clear();
+  
+  // Restore last username for convenience
+  if (lastUser) sessionStorage.setItem('lastUsername', lastUser);
   if (lastUser) userEl.value = lastUser;
 
   // สลับแสดง/ซ่อนรหัสผ่าน
@@ -53,7 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btn.disabled = true;
-    btn.innerHTML = 'กำลังเข้าสู่ระบบ...';
+    btn.innerHTML = '⌛ กำลังตรวจสอบ...';
+    console.log('🚀 Login attempt for:', username);
 
     try {
       const res = await fetch('/api/users/login', {
@@ -62,37 +52,37 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ username, password })
       });
 
-      // บางกรณี server อาจส่ง non‑JSON กลับมาได้ จัดการให้ปลอดภัย
+      console.log('📡 Server response status:', res.status);
       let data = null;
-      const ct = res.headers.get('content-type') || '';
-      if (ct.includes('application/json')) {
+      try {
         data = await res.json();
-      } else {
-        const t = await res.text();
-        try { data = JSON.parse(t); } catch { data = { message: t }; }
+      } catch (e) {
+        console.error('❌ Failed to parse JSON response');
+        throw new Error('เซิร์ฟเวอร์ตอบกลับผิดพลาด (Invalid JSON)');
       }
 
       if (!res.ok) {
-        throw new Error((data && data.message) || res.statusText || 'Invalid credentials.');
+        throw new Error(data.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
       }
 
-      if (!data || !data.token) {
-        throw new Error('ไม่พบโทเค็นตอบกลับจากระบบ');
+      if (!data.token) {
+        throw new Error('ไม่ได้รับโทเค็นเข้าสู่ระบบจากเซิร์ฟเวอร์');
       }
 
-      // บันทึก token + จำชื่อผู้ใช้ + บทบาท
+      console.log('✅ Login successful, storing session...');
       sessionStorage.setItem('authToken', data.token);
       sessionStorage.setItem('userRole', data.role || 'Employee');
+      sessionStorage.setItem('userName', data.displayName || username);
       sessionStorage.setItem('lastUsername', username);
 
-      // เข้าหน้าหลัก
-      window.location.href = '/index.html';
+      console.log('🔀 Redirecting to Dashboard...');
+      window.location.replace('/dashboard.html');
     } catch (err) {
-      console.error('Login error:', err);
-      errorEl.textContent = err.message || 'ไม่สามารถเข้าสู่ระบบได้';
+      console.error('❌ Login Error:', err);
+      errorEl.textContent = err.message || 'ระบบขัดข้อง กรุณาลองใหม่ภายหลัง';
     } finally {
       btn.disabled = false;
-      btn.textContent = 'เข้าสู่ระบบ';
+      btn.innerHTML = '🚀 เข้าสู่ระบบ';
     }
   });
 });

@@ -98,7 +98,7 @@ router.post('/login', authLimiter, async (req, res) => {
 
 router.get('/list', auth, isAdmin, async (req, res) => {
   try {
-    const users = await User.find({}, 'username displayName role jobTitle _id createdAt');
+    const users = await User.find({}, 'username displayName role jobTitle _id createdAt lineUserId');
     res.json(users);
   } catch (e) {
     res.status(500).json({ message: 'Server error.' });

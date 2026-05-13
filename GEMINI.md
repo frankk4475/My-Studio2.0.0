@@ -2,6 +2,13 @@
 
 ## Recent Updates (2026-05-13)
 
+### v2.2.0 - Communication & Calendar Restoration
+- **Staff Messaging Hub:** Added a dedicated interface in the Employee module to send broadcast LINE messages to staff using the Admin Bot.
+- **Smart Multi-Bot Routing:** Improved `lineService` to automatically route messages to either the Customer or Admin bot based on the recipient's role.
+- **Calendar Visibility Fix:** Restored the `/api/bookings/calendar` route and integrated with Socket.io for live calendar updates.
+- **Enhanced Registration:** Implemented a modern web-based registration form for customers, accessible via a clickable button in LINE.
+- **Security & Stability:** Fixed redirect loops in the login flow and secured all management pages with a centralized auth guard in `layout.js`.
+
 ### v2.1.0 - The Smart Overhaul
 - **System-Wide UI Modernization:** Implemented a new design system (Indigo/Slate) across all pages with a dynamic `layout.js` for Sidebar/Topbar consistency.
 - **AI-Powered Workflows:**

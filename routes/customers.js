@@ -56,4 +56,61 @@ router.post('/send-message', async (req, res) => {
   }
 });
 
+// POST /api/customers/send-staff-message
+router.post('/send-staff-message', async (req, res) => {
+  try {
+    const { lineUserId, message } = req.body;
+    if (!lineUserId || !message) return res.status(400).json({ message: 'Missing userId or message' });
+
+    console.log(`Sending LINE message (Admin Bot) to Staff ${lineUserId}: ${message}`);
+
+    await lineService.sendAdminMessage(lineUserId, message);
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Staff message error:', e);
+    res.status(500).json({ message: 'Failed to send message to staff.' });
+  }
+});
+
+// POST /api/customers/register-via-line
+router.post('/register-via-line', async (req, res) => {
+  try {
+    const { lineUserId, name, phone, email, company, address, taxId, social } = req.body;
+    if (!lineUserId || !name) return res.status(400).json({ message: 'Missing userId or name' });
+
+    let customer = await Customer.findOne({ lineUserId });
+    if (customer) {
+      // Update existing
+      customer.name = name;
+      customer.phone = phone;
+      customer.email = email;
+      customer.company = company;
+      customer.address = address;
+      customer.taxId = taxId;
+      customer.social = social;
+      await customer.save();
+    } else {
+      // Create new
+      customer = new Customer({
+        lineUserId,
+        name,
+        phone,
+        email,
+        company,
+        address,
+        taxId,
+        social,
+        lastActive: new Date()
+      });
+      await customer.save();
+    }
+
+    res.json({ ok: true, customer });
+  } catch (e) {
+    console.error('Registration Error:', e);
+    res.status(500).json({ message: 'Failed to register.' });
+  }
+});
+
 module.exports = router;

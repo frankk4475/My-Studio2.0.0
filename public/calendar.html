@@ -43,12 +43,26 @@
         center: 'title',
         right: 'dayGridMonth,timeGridWeek,timeGridDay'
       },
-      events: '/api/bookings/calendar',
+      events: function(info, successCallback, failureCallback) {
+        const token = sessionStorage.getItem('authToken');
+        fetch('/api/bookings/calendar', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(data => successCallback(data))
+        .catch(err => failureCallback(err));
+      },
       eventClick: function(info) {
         alert('งาน: ' + info.event.title + '\nลูกค้า: ' + info.event.extendedProps.customer);
       }
     });
     calendar.render();
+
+    // Listen for real-time updates from layout.js
+    window.addEventListener('bookingChanged', () => {
+      console.log('🔄 Calendar: Refreshing events due to real-time update...');
+      calendar.refetchEvents();
+    });
   });
 </script>
 </body>

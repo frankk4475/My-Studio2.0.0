@@ -1,8 +1,5 @@
-// public/tasks.js
+// public/tasks.js — Modernized Task & Equipment Logic
 
-/**
- * UTILS & AUTH
- */
 const getToken = () => sessionStorage.getItem('authToken');
 const getHeaders = () => ({ 
   'Authorization': 'Bearer ' + getToken(),
@@ -25,27 +22,21 @@ async function apiFetch(path, options = {}) {
   }
 }
 
-/**
- * STATE
- */
 let allEquipment = [];
 let html5QrCode = null;
 
 /**
- * CORE LOGIC: DATA LOADING
+ * DATA LOADING
  */
 async function loadPageData() {
   const spinner = document.getElementById('loading-spinner');
   const errorAlert = document.getElementById('error-alert');
-  const listContainer = document.getElementById('assignments-list');
+  const listBody = document.getElementById('assignments-list');
 
   try {
-    // Show spinner, hide list
     spinner?.classList.remove('d-none');
-    listContainer?.classList.add('d-none');
     errorAlert?.classList.add('d-none');
 
-    // Load everything in parallel
     const [assignments, bookingsRaw, equipment, users] = await Promise.all([
       apiFetch('/api/assignments'),
       apiFetch('/api/bookings'),
@@ -59,13 +50,10 @@ async function loadPageData() {
     // 1. Fill Modals
     fillAssignmentModal(bookings, allEquipment, users);
     
-    // 2. Render Assignments
+    // 2. Render Assignments Table
     renderAssignments(assignments);
 
-    // Show list, hide spinner
     spinner?.classList.add('d-none');
-    listContainer?.classList.remove('d-none');
-
   } catch (err) {
     spinner?.classList.add('d-none');
     errorAlert?.classList.remove('d-none');
@@ -78,7 +66,6 @@ function fillAssignmentModal(bookings, equipment, users) {
   const eSelect = document.getElementById('employee-select');
   const equipBox = document.getElementById('equip-checkboxes');
 
-  // Fill Bookings
   if (bSelect) {
     bSelect.innerHTML = '<option value="">-- เลือกรายการจอง --</option>';
     bookings.forEach(b => {
@@ -89,7 +76,6 @@ function fillAssignmentModal(bookings, equipment, users) {
     });
   }
 
-  // Fill Employees
   if (eSelect) {
     eSelect.innerHTML = '<option value="">-- เลือกพนักงาน --</option>';
     users.forEach(u => {
@@ -100,7 +86,6 @@ function fillAssignmentModal(bookings, equipment, users) {
     });
   }
 
-  // Fill Equipment Checkboxes
   if (equipBox) {
     equipBox.innerHTML = '';
     const available = equipment.filter(e => e.status === 'Available');
@@ -109,7 +94,7 @@ function fillAssignmentModal(bookings, equipment, users) {
     } else {
       available.forEach(e => {
         const div = document.createElement('div');
-        div.className = 'col-md-6 col-lg-4 mb-2';
+        div.className = 'col-md-6 mb-2';
         div.innerHTML = `
           <div class="form-check p-2 border rounded bg-white h-100">
             <input class="form-check-input ms-0 me-2 equip-check" type="checkbox" value="${e._id}" id="eq-${e._id}" data-barcode="${e.barcode || e.serialNumber || ''}">
@@ -126,57 +111,45 @@ function fillAssignmentModal(bookings, equipment, users) {
 }
 
 function renderAssignments(list) {
-  const container = document.getElementById('assignments-list');
-  if (!container) return;
-  container.innerHTML = '';
+  const listBody = document.getElementById('assignments-list');
+  if (!listBody) return;
+  listBody.innerHTML = '';
 
   if (!list || list.length === 0) {
-    container.innerHTML = '<div class="col-12 text-center py-5 text-muted">ยังไม่มีประวัติการเบิกของ</div>';
+    listBody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">ยังไม่มีประวัติการเบิกของ</td></tr>';
     return;
   }
 
-  list.forEach(item => {
-    const equipList = (item.equipmentIds || []).map(e => `<li>${e.name} <small class="text-muted">(${e.serialNumber || '-'})</small></li>`).join('');
+  listBody.innerHTML = list.map(item => {
+    const equipList = (item.equipmentIds || []).map(e => `<span class="badge badge-info me-1 mb-1">${e.name}</span>`).join('');
     
     let statusBadge = '';
-    if (item.status === 'Completed') statusBadge = '<span class="badge bg-success">คืนของเรียบร้อย</span>';
-    else if (item.status === 'In Progress') statusBadge = '<span class="badge bg-primary">กำลังใช้งาน</span>';
-    else statusBadge = '<span class="badge bg-warning text-dark">รอดำเนินการ</span>';
+    if (item.status === 'Completed') statusBadge = '<span class="badge badge-success">คืนแล้ว</span>';
+    else if (item.status === 'In Progress') statusBadge = '<span class="badge badge-warning">กำลังใช้งาน</span>';
+    else statusBadge = '<span class="badge border text-muted">รอรับของ</span>';
 
-    const card = document.createElement('div');
-    card.className = 'col-md-6 col-lg-4';
-    card.innerHTML = `
-      <div class="card h-100 shadow-sm border-0">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            ${statusBadge}
-            <small class="text-muted font-monospace">${item.documentNumber || '-'}</small>
-          </div>
-          <h6 class="fw-bold mb-1">${item.bookingId?.customer || 'ไม่พบข้อมูลลูกค้า'}</h6>
-          <div class="small text-muted mb-3">${new Date(item.assignedAt).toLocaleDateString('th-TH')} | ${item.bookingId?.bookingType || '-'}</div>
-          
-          <div class="mb-2">
-            <small class="d-block fw-bold text-secondary text-uppercase" style="font-size:0.65rem">ผู้เบิกอุปกรณ์</small>
-            <span>${item.employeeId?.displayName || item.employeeId?.username || 'N/A'}</span>
-          </div>
-
-          <div class="mb-3">
-            <small class="d-block fw-bold text-secondary text-uppercase" style="font-size:0.65rem">อุปกรณ์ที่เบิก (${item.equipmentIds?.length || 0})</small>
-            <ul class="small mb-0 ps-3 mt-1">${equipList || '<li class="text-muted">ไม่ได้ระบุอุปกรณ์</li>'}</ul>
-          </div>
-
-          <div class="d-flex gap-2 mt-auto pt-2 border-top">
-            <a href="/loan-detail.html?id=${item._id}" class="btn btn-sm btn-light flex-grow-1">🖨️ พิมพ์ใบเบิก</a>
+    return `
+      <tr>
+        <td><div class="fw-bold text-primary">${item.documentNumber || '-'}</div></td>
+        <td>
+          <div class="fw-bold">${item.bookingId?.customer || 'ไม่พบข้อมูลลูกค้า'}</div>
+          <div class="small text-muted">${item.bookingId?.bookingType || '-'} | ${new Date(item.assignedAt).toLocaleDateString('th-TH')}</div>
+        </td>
+        <td>${item.employeeId?.displayName || item.employeeId?.username || 'N/A'}</td>
+        <td style="max-width: 300px;">${equipList || '<span class="text-muted small">ไม่ได้ระบุ</span>'}</td>
+        <td>${statusBadge}</td>
+        <td class="text-end">
+          <div class="d-flex gap-2 justify-content-end">
+            <a href="/loan-detail.html?id=${item._id}" class="btn btn-sm btn-outline" title="พิมพ์ใบเบิก">🖨️</a>
             ${item.status !== 'Completed' ? `
-              <button class="btn btn-sm btn-success btn-complete" data-id="${item._id}">ยืนยันคืนของ</button>
-              <button class="btn btn-sm btn-outline-primary btn-edit-task" data-id="${item._id}" data-desc="${item.taskDescription || ''}" data-status="${item.status}">✏️</button>
+              <button class="btn btn-sm btn-primary btn-complete" data-id="${item._id}">คืนของ</button>
+              <button class="btn btn-sm btn-outline-secondary btn-edit-task" data-id="${item._id}" data-desc="${item.taskDescription || ''}" data-status="${item.status}">✏️</button>
             ` : ''}
           </div>
-        </div>
-      </div>
+        </td>
+      </tr>
     `;
-    container.appendChild(card);
-  });
+  }).join('');
 }
 
 /**
@@ -194,14 +167,13 @@ function selectItemByBarcode(code) {
       found = true;
     }
   });
-  if (!found) alert('❌ ไม่พบอุปกรณ์ที่มีรหัส: ' + code);
+  if (!found) {
+    if (window.layout) window.layout.showToast('ไม่พบอุปกรณ์ที่มีรหัส: ' + code, 'warning');
+    else alert('ไม่พบอุปกรณ์ที่มีรหัส: ' + code);
+  }
 }
 
 window.openScanner = () => {
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-    alert('⚠️ Security: Camera access requires HTTPS');
-    return;
-  }
   const modalEl = document.getElementById('scannerModal');
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
 };
@@ -213,11 +185,16 @@ async function startCamera() {
     await html5QrCode.start(
       { facingMode: "environment" }, 
       { fps: 15, qrbox: { width: 250, height: 250 } },
-      (text) => { selectItemByBarcode(text); window.closeScanner(); }
-    );
+      (text) => { 
+        selectItemByBarcode(text); 
+        bootstrap.Modal.getInstance(document.getElementById('scannerModal')).hide();
+      }
+    ).catch(e => {
+        alert("ไม่สามารถเข้าถึงกล้องได้: " + e);
+        bootstrap.Modal.getInstance(document.getElementById('scannerModal')).hide();
+    });
   } catch (err) {
-    alert("ไม่สามารถเปิดกล้องได้: " + err.message);
-    window.closeScanner();
+    console.error(err);
   }
 }
 
@@ -226,16 +203,15 @@ window.closeScanner = async () => {
     await html5QrCode.stop().catch(() => {});
     html5QrCode.clear();
   }
-  bootstrap.Modal.getInstance(document.getElementById('scannerModal'))?.hide();
 };
 
 /**
- * EVENT HANDLERS
+ * INITIALIZATION
  */
 document.addEventListener('DOMContentLoaded', () => {
   loadPageData();
 
-  // Barcode input (Enter key)
+  // Barcode input
   document.getElementById('barcode-input')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -245,9 +221,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Modal events
-  const scanModal = document.getElementById('scannerModal');
-  scanModal?.addEventListener('shown.bs.modal', startCamera);
-  scanModal?.addEventListener('hidden.bs.modal', window.closeScanner);
+  document.getElementById('scannerModal')?.addEventListener('shown.bs.modal', startCamera);
+  document.getElementById('scannerModal')?.addEventListener('hidden.bs.modal', window.closeScanner);
 
   // Form Submit: Create Loan
   document.getElementById('assign-form')?.addEventListener('submit', async (e) => {
@@ -257,27 +232,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const json = Object.fromEntries(fd.entries());
     json.equipmentIds = Array.from(document.querySelectorAll('.equip-check:checked')).map(cb => cb.value);
 
+    if (json.equipmentIds.length === 0) {
+      return alert('กรุณาเลือกอุปกรณ์อย่างน้อย 1 รายการ');
+    }
+
     try {
-      btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+      btn.disabled = true; btn.innerHTML = '⌛ กำลังบันทึก...';
       await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(json) });
       bootstrap.Modal.getInstance(document.getElementById('assignModal')).hide();
-      e.target.reset();
+      window.layout?.showToast('สร้างใบเบิกอุปกรณ์เรียบร้อย', 'success');
       loadPageData();
+      e.target.reset();
     } catch (err) {
       alert('บันทึกไม่สำเร็จ: ' + err.message);
     } finally {
-      btn.disabled = false; btn.textContent = 'บันทึกและสร้างใบเบิก';
+      btn.disabled = false; btn.innerHTML = '💾 บันทึกและสร้างใบเบิก';
     }
   });
 
-  // List Actions (Complete/Edit)
+  // Table Actions
   document.getElementById('assignments-list')?.addEventListener('click', async (e) => {
     const id = e.target.dataset.id;
     
     if (e.target.classList.contains('btn-complete')) {
       if (!confirm('ยืนยันว่าได้รับของคืนครบถ้วน?')) return;
-      await apiFetch('/api/assignments/' + id, { method: 'PUT', body: JSON.stringify({ status: 'Completed' }) });
-      loadPageData();
+      try {
+        await apiFetch('/api/assignments/' + id, { method: 'PUT', body: JSON.stringify({ status: 'Completed' }) });
+        window.layout?.showToast('คืนอุปกรณ์เรียบร้อย', 'success');
+        loadPageData();
+      } catch(err) { alert('เกิดข้อผิดพลาด'); }
     }
 
     if (e.target.classList.contains('btn-edit-task')) {
@@ -289,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Form Submit: Edit Status
+  // Form Submit: Edit
   document.getElementById('edit-assign-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -300,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await apiFetch('/api/assignments/' + id, { method: 'PUT', body: JSON.stringify(json) });
       bootstrap.Modal.getInstance(document.getElementById('editAssignModal')).hide();
+      window.layout?.showToast('อัปเดตสถานะเรียบร้อย', 'success');
       loadPageData();
     } catch (err) {
       alert('แก้ไขไม่สำเร็จ');
