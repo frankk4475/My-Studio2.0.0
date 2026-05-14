@@ -93,12 +93,20 @@ app.use('/api/users', require('./routes/auth'));
 
 // Auth Middleware
 const authMiddleware = async (req, res, next) => {
-  if (req.path.startsWith('/api/line')) return next();
-  if (req.path === '/api/customers/register-via-line') return next();
-  if (req.path.endsWith('/public')) return next(); // Publicly accessible doc APIs
+  // Paths here are relative to the '/api' mount point
+  // Allow registration and public document access
+  const isRegister = req.path === '/customers/register-via-line';
+  const isPublicDoc = req.path.endsWith('/public');
+
+  if (isRegister || isPublicDoc) return next();
+  
   const hdr = req.headers['authorization'] || '';
   const token = /^Bearer\s+(.+)$/i.test(hdr) ? hdr.replace(/^Bearer\s+/i, '') : null;
-  if (!token) return res.status(401).json({ message: 'Missing token' });
+  
+  if (!token) {
+    console.warn(`🔒 Auth Denied: Missing token for ${req.method} ${req.originalUrl}`);
+    return res.status(401).json({ message: 'Missing token' });
+  }
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(payload.userId);
@@ -118,6 +126,19 @@ app.use('/api/equipment', require('./routes/equipment'));
 app.use('/api/assignments', require('./routes/assignments'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/customers', require('./routes/customers'));
+
+// Centralized Error Handler
+app.use((err, req, res, next) => {
+  console.error('💥 Unhandled Error:', err);
+  const status = err.status || 500;
+  const message = err.message || 'Internal Server Error';
+  
+  if (req.path.startsWith('/api')) {
+    res.status(status).json({ message });
+  } else {
+    res.status(status).send(`<h1>Error ${status}</h1><p>${message}</p>`);
+  }
+});
 
 const connectDB = require('./config/db');
 const socketService = require('./services/socketService');

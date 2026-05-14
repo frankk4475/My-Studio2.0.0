@@ -12,6 +12,11 @@ const customerSchema = new mongoose.Schema({
   lineDisplayName: { type: String, trim: true },
   linePictureUrl: { type: String, trim: true },
   notes: { type: String, trim: true },
+  recentMessages: [{
+    role: { type: String, enum: ['user', 'assistant'] },
+    content: { type: String },
+    timestamp: { type: Date, default: Date.now }
+  }],
   totalBookings: { type: Number, default: 0 },
   lastActive: { type: Date, default: Date.now }
 }, { timestamps: true });

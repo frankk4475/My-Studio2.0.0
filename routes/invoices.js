@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Invoice = require('../models/Invoice');
+const Quote = require('../models/Quote');
+const Booking = require('../models/Booking');
+const lineService = require('../services/lineService');
 
 router.get('/', async (req, res) => {
   try {
@@ -45,8 +48,21 @@ router.put('/:id', async (req, res) => {
     }
 
     // Apply updates
+    const oldStatus = invoice.paymentStatus;
     Object.assign(invoice, req.body);
     await invoice.save();
+    
+    // If status changed to Paid, notify customer
+    if (invoice.paymentStatus === 'Paid' && oldStatus !== 'Paid') {
+        const quote = await Quote.findById(invoice.quoteId);
+        if (quote && quote.bookingId) {
+            const booking = await Booking.findById(quote.bookingId);
+            if (booking && booking.lineUserId) {
+                const baseUrl = `${req.protocol}://${req.get('host')}`;
+                await lineService.sendReceiptNotification(booking.lineUserId, invoice, baseUrl);
+            }
+        }
+    }
     
     res.json(invoice);
   } catch (e) { 
@@ -78,6 +94,19 @@ router.post('/:id/payment', async (req, res) => {
     }
 
     await invoice.save();
+
+    // If fully paid, send receipt notification
+    if (invoice.paymentStatus === 'Paid') {
+        const quote = await Quote.findById(invoice.quoteId);
+        if (quote && quote.bookingId) {
+            const booking = await Booking.findById(quote.bookingId);
+            if (booking && booking.lineUserId) {
+                const baseUrl = `${req.protocol}://${req.get('host')}`;
+                await lineService.sendReceiptNotification(booking.lineUserId, invoice, baseUrl);
+            }
+        }
+    }
+
     res.json(invoice);
   } catch (e) {
     console.error(e);

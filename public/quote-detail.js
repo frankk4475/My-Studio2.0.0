@@ -122,11 +122,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderQuote(q);
 
     // 3. Handle Admin-only actions
+    const hasToken = !!token();
     const convertBtn = $('convert-btn');
-    if (!token()) {
+    const backBtn = $('back-to-list');
+
+    if (!hasToken) {
         if (convertBtn) convertBtn.style.display = 'none';
-    } else if (convertBtn) {
-        convertBtn.addEventListener('click', async () => {
+        if (backBtn) backBtn.classList.add('d-none');
+    } else {
+        if (backBtn) backBtn.classList.remove('d-none');
+        if (convertBtn) {
+            convertBtn.addEventListener('click', async () => {
           try{
             convertBtn.disabled = true; 
             const originalText = convertBtn.textContent;
@@ -157,6 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             convertBtn.textContent = 'แปลงเป็นใบแจ้งหนี้'; 
           }
         });
+      }
     }
 
   }catch(err){

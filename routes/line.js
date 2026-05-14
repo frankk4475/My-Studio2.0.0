@@ -8,6 +8,7 @@ const Booking = require('../models/Booking');
 const Customer = require('../models/Customer');
 const Invoice = require('../models/Invoice');
 const User = require('../models/User');
+const Settings = require('../models/Settings');
 
 // --- EVENT DEDUPLICATION CACHE ---
 const processedEvents = new Map(); // Store eventId -> timestamp
@@ -78,13 +79,13 @@ router.post('/webhook', async (req, res) => {
         if (eventId) processedEvents.set(eventId, Date.now());
 
         // Run handleEvent in background
-        handleEvent(event, botType).catch(err => {
+        handleEvent(event, botType, req).catch(err => {
             console.error('Background Event Error:', err);
         });
     }
 });
 
-async function handleEvent(event, botType) {
+async function handleEvent(event, botType, request) {
   if (event.type !== 'message' || event.message.type !== 'text') {
     return null;
   }
@@ -232,11 +233,27 @@ async function handleEvent(event, botType) {
       // --- BOOKING & REGISTRATION LOGIC ---
       
       // 1. Precise Template Triggers
-      if (text === 'ลงทะเบียน') {
-        const protocol = req.headers['x-forwarded-proto'] || 'http';
-        const host = req.get('host');
-        const regUrl = `${protocol}://${host}/register.html?userId=${userId}`;
+      if (text === 'ลงทะเบียน' || text.toLowerCase() === 'register' || text === 'สมัครสมาชิก') {
+        // Build the full URL properly - with safety checks for request
+        let protocol = 'http';
+        let host = 'localhost:3000'; // Default fallback
+
+        if (request && request.headers) {
+            protocol = request.headers['x-forwarded-proto'] || request.protocol || 'http';
+            host = request.get('host');
+        } else {
+            console.warn('⚠️ Warning: request is undefined in handleEvent registration logic');
+        }
         
+        // Ensure userId is present
+        if (!userId) {
+            console.error('❌ Missing userId for registration');
+            return reply('ขออภัยครับ ไม่สามารถดึงรหัสผู้ใช้เพื่อลงทะเบียนได้ กรุณาลองใหม่ภายหลัง');
+        }
+        
+        const regUrl = `${protocol}://${host}/register.html?userId=${userId}`;
+        console.log('🔗 Generated Registration URL:', regUrl);
+
         return reply([{
             type: 'template',
             altText: 'กรุณาลงทะเบียนข้อมูลลูกค้า',
@@ -326,21 +343,74 @@ async function handleEvent(event, botType) {
           }
       }
 
-      // --- GENERAL AI CHAT (Fallback) ---
+      // --- GENERAL AI CHAT (Fallback with Structured Memory) ---
       try {
-        const aiPrompt = `คุณคือ "Studio Assistant" ผู้ช่วยจองคิวของสตูดิโอถ่ายภาพ
-        ชื่อลูกค้า: ${customer ? customer.name : 'ลูกค้า'}
-        
-        ตัวอย่างการตอบ:
-        คำถาม: "มีคิวว่างไหม"
-        คำตอบ: "ยินดีที่ได้รู้จักครับคุณ ${customer ? customer.name : 'ลูกค้า'}! เพื่อตรวจสอบคิวว่างให้แม่นยำ รบกวนแจ้งประเภทงาน วันที่ และเวลาที่สนใจได้เลยครับ"
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Bangkok' });
+        const timeStr = now.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' });
 
-        คำถามลูกค้าล่าสุด: "${text}"
-        คำตอบ (เป็นภาษาไทยเท่านั้น):`;
+        // 1. Fetch Context Data (RAG)
+        const recentBookings = await Booking.find({ lineUserId: userId }).sort({ date: -1 }).limit(3);
+        const settings = await Settings.findOne();
         
-        const aiResponse = await ollamaService.callAI(aiPrompt, "ตอบเป็นภาษาไทยอย่างสุภาพและเป็นกันเอง");
+        let contextInfo = `ข้อมูลปัจจุบัน: วัน${dateStr} เวลา ${timeStr}\n`;
+        contextInfo += `ชื่อลูกค้า: ${customer ? customer.name : 'ยังไม่ลงทะเบียน'}\n`;
+        
+        if (recentBookings.length > 0) {
+            contextInfo += `รายการจองล่าสุดของคุณ:\n`;
+            recentBookings.forEach(b => {
+                contextInfo += `- ${b.bookingType} วันที่ ${new Date(b.date).toLocaleDateString('th-TH')} สถานะ: ${b.status}\n`;
+            });
+        }
+
+        if (settings && settings.business) {
+            contextInfo += `ข้อมูลสตูดิโอ: ${settings.business.name || 'My Studio'}\n`;
+            if (settings.business.address) contextInfo += `ที่อยู่: ${settings.business.address}\n`;
+        }
+
+        // 2. Build Messages Array for Chat API
+        const messages = [];
+        
+        // Add System Context
+        messages.push({ 
+            role: 'system', 
+            content: `บริบทจากระบบสตูดิโอ:\n${contextInfo}\nกรุณาใช้ข้อมูลนี้ตอบลูกค้าอย่างเป็นธรรมชาติที่สุด` 
+        });
+
+        // Add History
+        if (customer && customer.recentMessages && customer.recentMessages.length > 0) {
+            customer.recentMessages.forEach(msg => {
+                messages.push({ role: msg.role, content: msg.content });
+            });
+        }
+
+        // Add Current User Message
+        messages.push({ role: 'user', content: text });
+
+        // 3. Call Chat AI
+        const aiResponse = await ollamaService.callChatAI(messages);
+        
+        // 4. Save to History (Limit to 10 messages)
+        if (customer) {
+            customer.recentMessages.push({ role: 'user', content: text });
+            customer.recentMessages.push({ role: 'assistant', content: aiResponse });
+            if (customer.recentMessages.length > 10) {
+                customer.recentMessages = customer.recentMessages.slice(-10);
+            }
+            await customer.save();
+        }
+
+        // Auto-Filter for Admin Notification
+        const urgentKeywords = ['ขอลด', 'ถูกกว่านี้', 'ด่วนที่สุด', 'ขอคุยกับแอดมิน', 'ร้องเรียน', 'ปัญหา'];
+        const isUrgent = urgentKeywords.some(k => text.includes(k));
+        
+        if (isUrgent) {
+            await lineService.notifyAdmins(`⚠️ [ด่วน] ลูกค้าต้องการความช่วยเหลือพิเศษ:\nลูกค้า: ${customer ? customer.name : 'LINE User'}\nข้อความ: "${text}"`);
+        }
+
         return reply(aiResponse);
       } catch (e) {
+        console.error('❌ AI Chat Error:', e);
         return reply('สวัสดีครับ มีอะไรให้ผมช่วยไหมครับ? สามารถพิมพ์ "จอง" เพื่อดูขั้นตอนการจองได้เลยครับ');
       }
   }

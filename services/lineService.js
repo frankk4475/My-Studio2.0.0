@@ -258,11 +258,145 @@ async function sendQuoteNotification(to, quote, baseUrl) {
   try {
     await customerClient.pushMessage({ to, messages: [flexMsg] });
   } catch (err) {
-    console.error('Send Quote Notification Error:', err);
+  console.error('Send Quote Notification Error:', err);
   }
-}
+  }
 
-module.exports = { 
+  /**
+  * Send Invoice Flex Message
+  */
+  async function sendInvoiceNotification(to, invoice, baseUrl) {
+  if (!customerClient) await refreshConfig();
+  if (!customerClient || !to) return;
+
+  const dueDateStr = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('th-TH') : '-';
+
+  const flexMsg = {
+  type: 'flex',
+  altText: `ใบแจ้งหนี้ใหม่: ${invoice.invoiceNumber}`,
+  contents: {
+    type: 'bubble',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        { type: 'text', text: 'ใบแจ้งหนี้ใหม่', weight: 'bold', size: 'xl', color: '#ffffff' }
+      ],
+      backgroundColor: '#f59e0b'
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        { type: 'text', text: `เลขที่: ${invoice.invoiceNumber}`, weight: 'bold', size: 'md', color: '#f59e0b' },
+        { type: 'text', text: invoice.customerName, weight: 'bold', size: 'lg', margin: 'xs' },
+        { type: 'separator', margin: 'md' },
+        {
+          type: 'box',
+          layout: 'vertical',
+          margin: 'md',
+          spacing: 'sm',
+          contents: [
+            { type: 'text', text: `ครบกำหนด: ${dueDateStr}`, size: 'sm', color: '#666666' },
+            { type: 'text', text: `ยอดที่ต้องชำระ: ${invoice.grandTotal.toLocaleString()} บาท`, size: 'md', weight: 'bold', color: '#1e293b' }
+          ]
+        }
+      ]
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'button',
+          action: {
+            type: 'uri',
+            label: 'เปิดดูใบแจ้งหนี้',
+            uri: `${baseUrl}/billing-detail.html?id=${invoice._id}`
+          },
+          style: 'primary',
+          color: '#f59e0b'
+        }
+      ]
+    }
+  }
+  };
+
+  try {
+  await customerClient.pushMessage({ to, messages: [flexMsg] });
+  } catch (err) {
+  console.error('Send Invoice Notification Error:', err);
+  }
+  }
+
+  /**
+  * Send Receipt Flex Message
+  */
+  async function sendReceiptNotification(to, invoice, baseUrl) {
+  if (!customerClient) await refreshConfig();
+  if (!customerClient || !to) return;
+
+  const recNo = invoice.invoiceNumber.startsWith('INV') ? invoice.invoiceNumber.replace('INV', 'REC') : `REC-${invoice.invoiceNumber}`;
+
+  const flexMsg = {
+  type: 'flex',
+  altText: `ใบเสร็จรับเงิน: ${recNo}`,
+  contents: {
+    type: 'bubble',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        { type: 'text', text: 'ชำระเงินสำเร็จ', weight: 'bold', size: 'xl', color: '#ffffff' }
+      ],
+      backgroundColor: '#10b981'
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        { type: 'text', text: `เลขที่ใบเสร็จ: ${recNo}`, weight: 'bold', size: 'md', color: '#10b981' },
+        { type: 'text', text: invoice.customerName, weight: 'bold', size: 'lg', margin: 'xs' },
+        { type: 'separator', margin: 'md' },
+        {
+          type: 'box',
+          layout: 'vertical',
+          margin: 'md',
+          spacing: 'sm',
+          contents: [
+            { type: 'text', text: `ยอดที่ชำระ: ${invoice.amountPaid.toLocaleString()} บาท`, size: 'md', weight: 'bold', color: '#1e293b' },
+            { type: 'text', text: 'ขอบคุณที่ใช้บริการครับ', size: 'sm', color: '#666666', margin: 'md' }
+          ]
+        }
+      ]
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'button',
+          action: {
+            type: 'uri',
+            label: 'เปิดดูใบเสร็จรับเงิน',
+            uri: `${baseUrl}/receipt-detail.html?id=${invoice._id}`
+          },
+          style: 'primary',
+          color: '#10b981'
+        }
+      ]
+    }
+  }
+  };
+
+  try {
+  await customerClient.pushMessage({ to, messages: [flexMsg] });
+  } catch (err) {
+  console.error('Send Receipt Notification Error:', err);
+  }
+  }
+
+  module.exports = { 
   customerClient: () => customerClient, 
   adminClient: () => adminClient,
   config, 
@@ -271,5 +405,7 @@ module.exports = {
   sendAdminMessage,
   sendBookingConfirmation,
   sendQuoteNotification,
+  sendInvoiceNotification,
+  sendReceiptNotification,
   refreshConfig 
-};
+  };

@@ -192,6 +192,13 @@ router.put('/:id', async (req, res) => {
       await inv.save();
       q.convertedToInvoiceId = inv._id;
       createdInvoiceId = inv._id;
+
+      // Notify customer about the new Invoice
+      const booking = await Booking.findById(q.bookingId);
+      if (booking && booking.lineUserId) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        await lineService.sendInvoiceNotification(booking.lineUserId, inv, baseUrl);
+      }
     }
 
     await q.save();
